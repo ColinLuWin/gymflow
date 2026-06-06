@@ -1,0 +1,15 @@
+{
+  "name": "gymflow-services",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1063.0",
+    "@aws-sdk/client-dynamodb": "^3.1063.0",
+    "@aws-sdk/lib-dynamodb": "^3.1063.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.161",
+    "esbuild": "^0.28.0",
+    "typescript": "~5.9.3"
+  }
+}

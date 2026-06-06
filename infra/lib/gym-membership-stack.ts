@@ -6,6 +6,7 @@ import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as authorizers from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
 import { Construct } from 'constructs';
 
@@ -85,9 +86,12 @@ export class GymMembershipStack extends cdk.Stack {
       USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
     };
 
+    const servicesLockFile = path.join(__dirname, '../../services/package-lock.json');
+
     const memberHandler = new nodejs.NodejsFunction(this, 'MemberHandler', {
       functionName: 'gym-member-handler',
       entry: path.join(__dirname, '../../services/member/index.ts'),
+      depsLockFilePath: servicesLockFile,
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       environment: commonEnv,
@@ -96,13 +100,26 @@ export class GymMembershipStack extends cdk.Stack {
     const authHandler = new nodejs.NodejsFunction(this, 'AuthHandler', {
       functionName: 'gym-auth-handler',
       entry: path.join(__dirname, '../../services/auth/index.ts'),
+      depsLockFilePath: servicesLockFile,
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       environment: commonEnv,
     });
 
     table.grantReadWriteData(memberHandler);
-    table.grantReadData(authHandler);
+    table.grantReadWriteData(authHandler);
+
+    authHandler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'cognito-idp:SignUp',
+          'cognito-idp:ConfirmSignUp',
+          'cognito-idp:InitiateAuth',
+          'cognito-idp:AdminAddUserToGroup',
+        ],
+        resources: [userPool.userPoolArn],
+      })
+    );
 
     // ── API Gateway ───────────────────────────────────────────────────────
     const api = new apigateway.HttpApi(this, 'GymApi', {
