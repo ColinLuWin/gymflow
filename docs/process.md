@@ -96,26 +96,28 @@ Browser
 - [x] Lambda skeleton (auth / member)
 - [x] 部署驗證：API 回應正常
 
-### Phase 2 — Backend API 🔄
+### Phase 2 — Backend API ✅
 **Auth**
-- [ ] `POST /auth/register` — 建立 Cognito 帳號
-- [ ] `POST /auth/login` — 取得 JWT token
-- [ ] `POST /auth/confirm` — 驗證 email
-- [ ] `POST /auth/refresh` — 刷新 token
+- [x] `POST /auth/register` — 建立 Cognito 帳號，寫入 DynamoDB PROFILE
+- [x] `POST /auth/login` — 取得 idToken / accessToken / refreshToken
+- [x] `POST /auth/confirm` — 驗證 email（ConfirmSignUp）
+- [x] `POST /auth/refresh` — 刷新 token（REFRESH_TOKEN_AUTH）
 
-**Member (會員端)**
-- [ ] `GET /members/me` — 查詢自己的資料
-- [ ] `PUT /members/me` — 更新個人資料
-- [ ] `GET /members/me/membership` — 查詢會員方案狀態
-- [ ] `GET /members/me/checkins` — 查詢報到記錄
+**Member (會員端，JWT 保護)**
+- [x] `GET /members/me` — 查詢自己的資料
+- [x] `PUT /members/me` — 更新個人資料（name / phone）
+- [x] `GET /members/me/membership` — 查詢會員方案狀態（分頁）
+- [x] `GET /members/me/checkins` — 查詢報到記錄（分頁，cursor-based）
 
-**Admin (管理端)**
-- [ ] `GET /admin/members` — 列出所有會員
-- [ ] `GET /admin/members/:id` — 查詢單一會員
-- [ ] `POST /admin/members` — 新增會員
-- [ ] `PUT /admin/members/:id` — 更新會員
-- [ ] `PUT /admin/members/:id/suspend` — 停權
-- [ ] `PUT /admin/members/:id/activate` — 復權
+**Admin (管理端，JWT 保護 + admin group 驗證)**
+- [x] `GET /admin/members` — 列出所有會員（Scan + 分頁）
+- [x] `GET /admin/members/:id` — 查詢單一會員
+- [x] `POST /admin/members` — 新增會員（AdminCreateUser + PROFILE）
+- [x] `PUT /admin/members/:id` — 更新會員（name / phone）
+- [x] `PUT /admin/members/:id/suspend` — 停權（DynamoDB + Cognito disable）
+- [x] `PUT /admin/members/:id/activate` — 復權（DynamoDB + Cognito enable）
+
+> **注意**：API Gateway HTTP API 將 Cognito JWT 的 `cognito:groups` 陣列序列化為 `[group1 group2]`（空格分隔、有中括號），需在 Lambda 內手動解析。
 
 ### Phase 3 — Frontend ⬜
 - [ ] Vue 3 + Vite 專案初始化
@@ -166,8 +168,10 @@ gymflow/
 │   ├── member-portal/          # 會員端網頁
 │   └── admin-portal/           # 管理者端網頁
 ├── services/
-│   ├── auth/                   # Lambda auth handler
-│   └── member/                 # Lambda member handler
+│   ├── auth/                   # Lambda — 認證 (register/login/confirm/refresh)
+│   ├── member/                 # Lambda — 會員資料 CRUD
+│   ├── admin/                  # Lambda — 管理端 API
+│   └── package.json            # 共用 AWS SDK 依賴
 ├── infra/
 │   ├── bin/
 │   │   └── gym-membership.ts   # CDK entry point
@@ -188,3 +192,4 @@ gymflow/
 | Date | Phase | 內容 |
 |---|---|---|
 | 2026-06-06 | Phase 1 | 初始化 CDK 專案，部署 DynamoDB / Cognito / API Gateway / Lambda 骨架 |
+| 2026-06-06 | Phase 2 | 實作 Auth / Member / Admin Lambda handler，端對端測試通過 |
