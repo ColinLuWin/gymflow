@@ -1,14 +1,22 @@
-# Welcome to your CDK TypeScript project
+# infra
 
-This is a blank project for CDK development with TypeScript.
+AWS CDK stack for Gymflow — 定義所有 AWS 資源。
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+## 包含資源
 
-## Useful commands
+- **DynamoDB** — Single-Table 設計，含 GSI
+- **Cognito** — User Pool，含 admin / trainer / member 群組
+- **API Gateway** — HTTP API，JWT 授權
+- **Lambda** — 連結至 `../services/` 的 handler
 
-* `npm run build`   compile typescript to js
-* `npm run watch`   watch for changes and compile
-* `npm run test`    perform the jest unit tests
-* `npx cdk deploy`  deploy this stack to your default AWS account/region
-* `npx cdk diff`    compare deployed stack with current state
-* `npx cdk synth`   emits the synthesized CloudFormation template
+## 常用指令
+
+```bash
+npm run build    # 編譯 TypeScript
+npm run watch    # 監聽變更並自動編譯
+npm test         # 執行 Jest 測試
+
+npx cdk diff     # 比較已部署與本地的差異
+npx cdk deploy   # 部署至 AWS
+npx cdk synth    # 輸出 CloudFormation template
+```
