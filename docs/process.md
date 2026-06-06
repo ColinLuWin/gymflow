@@ -161,21 +161,24 @@ Browser
 ## File Structure
 
 ```
-gym-membership/
-├── bin/
-│   └── gym-membership.ts       # CDK entry point
-├── lib/
-│   └── gym-membership-stack.ts # CDK stack (all infra)
-├── lambda/
-│   ├── auth/
-│   │   └── index.ts            # Auth handler
-│   └── member/
-│       └── index.ts            # Member handler
-├── test/
-├── process.md                  # This file
-├── cdk.json
-├── package.json
-└── tsconfig.json
+gymflow/
+├── apps/
+│   ├── member-portal/          # 會員端網頁
+│   └── admin-portal/           # 管理者端網頁
+├── services/
+│   ├── auth/                   # Lambda auth handler
+│   └── member/                 # Lambda member handler
+├── infra/
+│   ├── bin/
+│   │   └── gym-membership.ts   # CDK entry point
+│   ├── lib/
+│   │   └── gym-membership-stack.ts # CDK stack
+│   └── test/
+├── packages/
+│   └── shared-types/           # 前後端共用 TypeScript 型別
+├── docs/
+│   └── process.md              # This file
+└── CLAUDE.md
 ```
 
 ---
