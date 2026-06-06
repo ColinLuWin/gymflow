@@ -1,0 +1,32 @@
+# Claude Code
+.claude/
+
+# Credentials — never commit
+aws-members-access-key.rtf
+*.pem
+*.key
+.env
+.env.*
+
+# CDK
+infra/cdk.out/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.js.map
+*.d.ts
+
+# TypeScript
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
