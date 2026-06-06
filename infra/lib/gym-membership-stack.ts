@@ -88,6 +88,15 @@ export class GymMembershipStack extends cdk.Stack {
 
     const servicesLockFile = path.join(__dirname, '../../services/package-lock.json');
 
+    const adminHandler = new nodejs.NodejsFunction(this, 'AdminHandler', {
+      functionName: 'gym-admin-handler',
+      entry: path.join(__dirname, '../../services/admin/index.ts'),
+      depsLockFilePath: servicesLockFile,
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: commonEnv,
+    });
+
     const memberHandler = new nodejs.NodejsFunction(this, 'MemberHandler', {
       functionName: 'gym-member-handler',
       entry: path.join(__dirname, '../../services/member/index.ts'),
@@ -108,6 +117,7 @@ export class GymMembershipStack extends cdk.Stack {
 
     table.grantReadWriteData(memberHandler);
     table.grantReadWriteData(authHandler);
+    table.grantReadWriteData(adminHandler);
 
     authHandler.addToRolePolicy(
       new iam.PolicyStatement({
@@ -139,6 +149,18 @@ export class GymMembershipStack extends cdk.Stack {
       }
     );
 
+    adminHandler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'cognito-idp:AdminCreateUser',
+          'cognito-idp:AdminDisableUser',
+          'cognito-idp:AdminEnableUser',
+          'cognito-idp:AdminAddUserToGroup',
+        ],
+        resources: [userPool.userPoolArn],
+      })
+    );
+
     // Auth routes (public)
     api.addRoutes({
       path: '/auth/{proxy+}',
@@ -151,6 +173,14 @@ export class GymMembershipStack extends cdk.Stack {
       path: '/members/{proxy+}',
       methods: [apigateway.HttpMethod.ANY],
       integration: new integrations.HttpLambdaIntegration('MemberIntegration', memberHandler),
+      authorizer: jwtAuthorizer,
+    });
+
+    // Admin routes (protected)
+    api.addRoutes({
+      path: '/admin/{proxy+}',
+      methods: [apigateway.HttpMethod.ANY],
+      integration: new integrations.HttpLambdaIntegration('AdminIntegration', adminHandler),
       authorizer: jwtAuthorizer,
     });
 
