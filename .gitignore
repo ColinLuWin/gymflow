@@ -14,9 +14,11 @@ infra/cdk.out/
 # Dependencies
 node_modules/
 
-# Build output
+# Build output (compiled TypeScript)
 dist/
 build/
+*.js
+!jest.config.js
 *.js.map
 *.d.ts
 
