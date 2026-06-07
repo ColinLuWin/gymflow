@@ -7,6 +7,9 @@ import * as authorizers from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as path from 'path';
 import { Construct } from 'constructs';
 
@@ -184,6 +187,44 @@ export class GymMembershipStack extends cdk.Stack {
       authorizer: jwtAuthorizer,
     });
 
+    // ── Frontend hosting ──────────────────────────────────────────────────
+    const spaErrorResponses: cloudfront.ErrorResponse[] = [
+      { httpStatus: 403, responseHttpStatus: 200, responsePagePath: '/index.html', ttl: cdk.Duration.seconds(0) },
+      { httpStatus: 404, responseHttpStatus: 200, responsePagePath: '/index.html', ttl: cdk.Duration.seconds(0) },
+    ];
+
+    const memberBucket = new s3.Bucket(this, 'MemberPortalBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
+
+    const memberDistribution = new cloudfront.Distribution(this, 'MemberDistribution', {
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(memberBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+      },
+      defaultRootObject: 'index.html',
+      errorResponses: spaErrorResponses,
+    });
+
+    const adminBucket = new s3.Bucket(this, 'AdminPortalBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
+
+    const adminDistribution = new cloudfront.Distribution(this, 'AdminDistribution', {
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(adminBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+      },
+      defaultRootObject: 'index.html',
+      errorResponses: spaErrorResponses,
+    });
+
     // ── Outputs ───────────────────────────────────────────────────────────
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: api.apiEndpoint,
@@ -200,6 +241,26 @@ export class GymMembershipStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'TableName', {
       value: table.tableName,
+    });
+
+    new cdk.CfnOutput(this, 'MemberPortalUrl', {
+      value: `https://${memberDistribution.distributionDomainName}`,
+    });
+    new cdk.CfnOutput(this, 'MemberBucketName', {
+      value: memberBucket.bucketName,
+    });
+    new cdk.CfnOutput(this, 'MemberDistributionId', {
+      value: memberDistribution.distributionId,
+    });
+
+    new cdk.CfnOutput(this, 'AdminPortalUrl', {
+      value: `https://${adminDistribution.distributionDomainName}`,
+    });
+    new cdk.CfnOutput(this, 'AdminBucketName', {
+      value: adminBucket.bucketName,
+    });
+    new cdk.CfnOutput(this, 'AdminDistributionId', {
+      value: adminDistribution.distributionId,
     });
   }
 }
