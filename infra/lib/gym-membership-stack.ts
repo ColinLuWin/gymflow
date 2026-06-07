@@ -151,6 +151,7 @@ export class GymMembershipStack extends cdk.Stack {
       new iam.PolicyStatement({
         actions: [
           'cognito-idp:AdminCreateUser',
+          'cognito-idp:AdminDeleteUser',
           'cognito-idp:AdminDisableUser',
           'cognito-idp:AdminEnableUser',
           'cognito-idp:AdminAddUserToGroup',

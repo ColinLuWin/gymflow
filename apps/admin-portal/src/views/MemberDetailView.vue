@@ -75,17 +75,28 @@
           </button>
         </form>
       </div>
+
+      <!-- Danger zone -->
+      <div class="mt-6 max-w-lg border border-red-200 rounded-xl p-5">
+        <p class="text-sm font-medium text-red-700 mb-1">危險操作</p>
+        <p class="text-xs text-gray-500 mb-4">刪除後無法復原，Cognito 帳號與所有資料將一併移除。</p>
+        <button @click="remove" :disabled="acting"
+          class="text-sm bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors font-medium">
+          {{ acting ? '刪除中…' : '刪除會員' }}
+        </button>
+      </div>
     </template>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
 import { api, type Member } from '@/lib/api'
 
 const route = useRoute()
+const router = useRouter()
 const id = route.params.id as string
 
 const loading = ref(true)
@@ -125,6 +136,17 @@ async function activate() {
     member.value!.status = 'active'
     actionMsg.value = '已復權'
     setTimeout(() => { actionMsg.value = '' }, 3000)
+  } finally {
+    acting.value = false
+  }
+}
+
+async function remove() {
+  if (!confirm(`確定要刪除「${member.value!.name}」？此操作無法復原。`)) return
+  acting.value = true
+  try {
+    await api.deleteMember(id)
+    router.push('/members')
   } finally {
     acting.value = false
   }

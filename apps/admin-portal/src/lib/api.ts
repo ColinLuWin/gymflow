@@ -66,4 +66,7 @@ export const api = {
 
   activateMember: (id: string) =>
     request<{ message: string }>(`/admin/members/${id}/activate`, { method: 'PUT' }),
+
+  deleteMember: (id: string) =>
+    request<{ message: string }>(`/admin/members/${id}`, { method: 'DELETE' }),
 }

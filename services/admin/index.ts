@@ -2,6 +2,7 @@ import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
 import {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
+  AdminDeleteUserCommand,
   AdminDisableUserCommand,
   AdminEnableUserCommand,
   AdminAddUserToGroupCommand,
@@ -10,6 +11,7 @@ import {
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
+  DeleteCommand,
   GetCommand,
   PutCommand,
   UpdateCommand,
@@ -190,6 +192,21 @@ async function updateMember(id: string, event: APIGatewayProxyEventV2): Promise<
   return ok(result.Attributes);
 }
 
+// DELETE /admin/members/:id
+async function deleteMember(id: string): Promise<APIGatewayProxyResultV2> {
+  const profile = await dynamo.send(
+    new GetCommand({ TableName: TABLE_NAME, Key: { PK: `MEMBER#${id}`, SK: 'PROFILE' } })
+  );
+  if (!profile.Item) return err('Member not found', 404);
+
+  await Promise.all([
+    dynamo.send(new DeleteCommand({ TableName: TABLE_NAME, Key: { PK: `MEMBER#${id}`, SK: 'PROFILE' } })),
+    cognito.send(new AdminDeleteUserCommand({ UserPoolId: USER_POOL_ID, Username: profile.Item.email as string })),
+  ]);
+
+  return ok({ message: 'Member deleted' });
+}
+
 // PUT /admin/members/:id/suspend
 async function suspendMember(id: string): Promise<APIGatewayProxyResultV2> {
   const profile = await dynamo.send(
@@ -265,6 +282,7 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
 
       if (method === 'GET' && !action) return await getMember(id);
       if (method === 'PUT' && !action) return await updateMember(id, event);
+      if (method === 'DELETE' && !action) return await deleteMember(id);
       if (method === 'PUT' && action === '/suspend') return await suspendMember(id);
       if (method === 'PUT' && action === '/activate') return await activateMember(id);
     }
