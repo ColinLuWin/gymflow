@@ -3,11 +3,21 @@
     <nav class="bg-white border-b border-gray-200">
       <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
         <span class="text-lg font-bold text-indigo-600">Gymflow</span>
-        <div class="flex items-center gap-6">
+        <div class="flex items-center gap-5">
           <RouterLink to="/dashboard"
             class="text-sm text-gray-600 hover:text-gray-900 transition-colors"
             active-class="text-indigo-600 font-medium">
             首頁
+          </RouterLink>
+          <RouterLink to="/points"
+            class="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            active-class="text-indigo-600 font-medium">
+            我的點數
+          </RouterLink>
+          <RouterLink to="/rewards"
+            class="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            active-class="text-indigo-600 font-medium">
+            兌換獎勵
           </RouterLink>
           <RouterLink to="/profile"
             class="text-sm text-gray-600 hover:text-gray-900 transition-colors"

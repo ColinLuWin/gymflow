@@ -8,6 +8,9 @@ const router = createRouter({
     { path: '/members', component: () => import('@/views/MembersView.vue') },
     { path: '/members/new', component: () => import('@/views/MemberNewView.vue') },
     { path: '/members/:id', component: () => import('@/views/MemberDetailView.vue') },
+    { path: '/rewards', component: () => import('@/views/RewardsView.vue') },
+    { path: '/redemptions', component: () => import('@/views/RedemptionsView.vue') },
+    { path: '/scan', component: () => import('@/views/ScanView.vue') },
     { path: '/', redirect: '/members' },
   ],
 })

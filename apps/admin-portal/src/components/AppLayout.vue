@@ -7,10 +7,25 @@
           <span class="text-xs bg-indigo-100 text-indigo-700 font-medium px-2 py-0.5 rounded-full">管理</span>
         </div>
         <div class="flex items-center gap-6">
+          <RouterLink to="/scan"
+            class="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            active-class="text-indigo-600 font-medium">
+            掃描發點
+          </RouterLink>
           <RouterLink to="/members"
             class="text-sm text-gray-600 hover:text-gray-900 transition-colors"
             active-class="text-indigo-600 font-medium">
             會員管理
+          </RouterLink>
+          <RouterLink to="/rewards"
+            class="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            active-class="text-indigo-600 font-medium">
+            獎勵商品
+          </RouterLink>
+          <RouterLink to="/redemptions"
+            class="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            active-class="text-indigo-600 font-medium">
+            兌換記錄
           </RouterLink>
           <button @click="logout" class="text-sm text-gray-400 hover:text-gray-600 transition-colors">
             登出

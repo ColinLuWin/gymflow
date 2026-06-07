@@ -150,6 +150,35 @@ Browser
 - CORS preflight（OPTIONS）不可帶 JWT authorizer；protected routes 需拆出獨立 OPTIONS route。
 - 管理端帳號不開放自助註冊，需由管理員透過 AdminCreateUser 建立。
 
+### Phase 3.5 — Points & Rewards ✅
+**DynamoDB Items 新增**
+- `MEMBER#<id>` / `POINTS_BALANCE` — 點數餘額（原子更新）
+- `MEMBER#<id>` / `POINTS_TXN#<isoTimestamp>` — 點數異動記錄（award / redeem / refund）
+- `REWARD#<id>` / `META` — 獎勵商品（name、pointsCost、stock、isActive）
+- `MEMBER#<id>` / `REDEMPTION#<epochMs>-<uuid>` — 兌換記錄（URL-safe ID，可排序）
+
+**Admin / Trainer 端（JWT 保護）**
+- [x] `POST /admin/members/:id/points` — 發點數（admin + trainer 皆可）
+- [x] `GET /admin/members/:id/points` — 查餘額 + 異動歷程（admin + trainer 皆可）
+- [x] `GET /admin/rewards` — 獎勵商品列表
+- [x] `POST /admin/rewards` — 建立獎勵商品（stock: -1 = 無限）
+- [x] `PUT /admin/rewards/:id` — 更新獎勵商品
+- [x] `DELETE /admin/rewards/:id` — 刪除獎勵商品
+- [x] `GET /admin/redemptions` — 所有兌換記錄
+- [x] `POST /admin/members/:id/redemptions/:redemptionId/cancel` — 撤銷兌換（補回點數）
+
+**會員端（JWT 保護）**
+- [x] `GET /members/me/qr` — 取得自己的 memberId（前端生成 QR）
+- [x] `GET /members/me/points` — 點數餘額 + 異動歷程
+- [x] `GET /members/rewards` — 瀏覽獎勵目錄（僅顯示 isActive=true）
+- [x] `POST /members/me/redemptions` — 兌換（TransactWrite：扣點 + 寫記錄，原子操作）
+- [x] `GET /members/me/redemptions` — 查看自己的兌換記錄
+
+**已知行為**
+- 點數餘額不足時兌換會回傳 400（TransactionCanceledException 處理）
+- 庫存有限商品（stock ≥ 0）兌換時同 transaction 原子扣庫存
+- Trainer group 只能存取 /points 相關端點，其餘 admin routes 仍限 admin group
+
 ### Phase 4 — Core Features ⬜
 **課程與預約**
 - [ ] `POST /classes` — 建立課程
@@ -217,3 +246,4 @@ gymflow/
 | 2026-06-07 | Fix | 修正 CORS preflight 被 JWT authorizer 攔截（OPTIONS route 需獨立、不帶 authorizer） |
 | 2026-06-07 | Fix | 修正 CORS preflight 被 API Gateway corsPreflight 設定回 404（改由 Lambda 自行回應） |
 | 2026-06-07 | Feat | Admin Portal 新增刪除會員功能（DELETE /admin/members/:id） |
+| 2026-06-07 | Feat | Phase 3.5：點數與獎勵兌換系統（發點、商品目錄、TransactWrite 兌換、撤銷補點） |

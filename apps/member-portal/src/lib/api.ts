@@ -48,6 +48,35 @@ export interface Checkin {
   locationId?: string
 }
 
+export interface PointsTxn {
+  SK: string
+  type: 'award' | 'redeem' | 'refund'
+  delta: number
+  note?: string
+  awardedBy?: string
+  createdAt: string
+}
+
+export interface Reward {
+  PK: string
+  id: string
+  name: string
+  description?: string
+  pointsCost: number
+  stock: number
+  isActive: boolean
+}
+
+export interface Redemption {
+  SK: string
+  redemptionId: string
+  rewardId: string
+  rewardName: string
+  pointsCost: number
+  status: 'active' | 'cancelled'
+  redeemedAt: string
+}
+
 export const api = {
   register: (email: string, password: string, name: string) =>
     request<{ message: string; sub: string }>('/auth/register', {
@@ -76,4 +105,19 @@ export const api = {
 
   getCheckins: (limit = 10) =>
     request<{ checkins: Checkin[]; cursor: string | null }>(`/members/me/checkins?limit=${limit}`),
+
+  getQr: () => request<{ memberId: string }>('/members/me/qr'),
+
+  getPoints: () =>
+    request<{ balance: number; transactions: PointsTxn[] }>('/members/me/points'),
+
+  getRewards: () => request<{ rewards: Reward[] }>('/members/rewards'),
+
+  redeem: (rewardId: string) =>
+    request<{ message: string; redemptionId: string }>('/members/me/redemptions', {
+      method: 'POST',
+      body: JSON.stringify({ rewardId }),
+    }),
+
+  getRedemptions: () => request<{ redemptions: Redemption[] }>('/members/me/redemptions'),
 }

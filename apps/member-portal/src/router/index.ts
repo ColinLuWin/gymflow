@@ -9,6 +9,8 @@ const router = createRouter({
     { path: '/confirm', component: () => import('@/views/ConfirmView.vue'), meta: { public: true } },
     { path: '/dashboard', component: () => import('@/views/DashboardView.vue') },
     { path: '/profile', component: () => import('@/views/ProfileView.vue') },
+    { path: '/points', component: () => import('@/views/PointsView.vue') },
+    { path: '/rewards', component: () => import('@/views/RewardsView.vue') },
     { path: '/', redirect: '/dashboard' },
   ],
 })

@@ -76,6 +76,49 @@
         </form>
       </div>
 
+      <!-- Points section -->
+      <div class="mt-6 bg-white rounded-xl border border-gray-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-sm font-medium text-gray-700">點數管理</p>
+          <span class="text-2xl font-bold text-indigo-600">{{ pointsBalance }} 點</span>
+        </div>
+
+        <form @submit.prevent="awardPts" class="flex gap-3 items-end mb-5">
+          <div class="flex-1">
+            <label class="block text-xs font-medium text-gray-500 mb-1">發給點數</label>
+            <input v-model.number="awardForm.points" type="number" min="1" required
+              class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
+          </div>
+          <div class="flex-[2]">
+            <label class="block text-xs font-medium text-gray-500 mb-1">備註（選填）</label>
+            <input v-model="awardForm.note" type="text" placeholder="例：深蹲 3 組完成"
+              class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
+          </div>
+          <button type="submit" :disabled="awarding"
+            class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap">
+            {{ awarding ? '發送中…' : '發點數' }}
+          </button>
+        </form>
+
+        <p v-if="awardMsg" class="mb-3 text-sm bg-green-50 text-green-700 px-3 py-2 rounded-lg">{{ awardMsg }}</p>
+
+        <div v-if="pointsTxns.length">
+          <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">最近異動</p>
+          <div v-for="t in pointsTxns" :key="t.SK"
+            class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+            <div>
+              <p class="text-sm text-gray-700">{{ t.note ?? txnLabel(t.type) }}</p>
+              <p class="text-xs text-gray-400">{{ formatDate(t.createdAt) }}</p>
+            </div>
+            <span :class="t.delta > 0 ? 'text-green-600' : 'text-red-500'"
+              class="text-sm font-semibold">
+              {{ t.delta > 0 ? '+' : '' }}{{ t.delta }}
+            </span>
+          </div>
+        </div>
+        <p v-else class="text-sm text-gray-400">尚無點數記錄</p>
+      </div>
+
       <!-- Danger zone -->
       <div class="mt-6 max-w-lg border border-red-200 rounded-xl p-5">
         <p class="text-sm font-medium text-red-700 mb-1">危險操作</p>
@@ -93,7 +136,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
-import { api, type Member } from '@/lib/api'
+import { api, type Member, type PointsTxn } from '@/lib/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -108,12 +151,19 @@ const actionMsg = ref('')
 const saving = ref(false)
 const saved = ref(false)
 const saveError = ref('')
+const pointsBalance = ref(0)
+const pointsTxns = ref<PointsTxn[]>([])
+const awardForm = ref({ points: 10, note: '' })
+const awarding = ref(false)
+const awardMsg = ref('')
 
 onMounted(async () => {
-  const m = await api.getMember(id)
+  const [m, pts] = await Promise.all([api.getMember(id), api.getMemberPoints(id)])
   member.value = m
   form.value.name = m.name
   form.value.phone = m.phone ?? ''
+  pointsBalance.value = pts.balance
+  pointsTxns.value = pts.transactions
   loading.value = false
 })
 
@@ -171,7 +221,33 @@ async function save() {
   }
 }
 
+async function awardPts() {
+  awarding.value = true
+  awardMsg.value = ''
+  try {
+    await api.awardPoints(id, awardForm.value.points, awardForm.value.note || undefined)
+    const pts = await api.getMemberPoints(id)
+    pointsBalance.value = pts.balance
+    pointsTxns.value = pts.transactions
+    awardMsg.value = `已發送 ${awardForm.value.points} 點`
+    awardForm.value.note = ''
+    setTimeout(() => { awardMsg.value = '' }, 3000)
+  } finally {
+    awarding.value = false
+  }
+}
+
+function txnLabel(type: string) {
+  if (type === 'award') return '教練發點'
+  if (type === 'redeem') return '會員兌換'
+  if (type === 'refund') return '兌換撤銷補回'
+  return '點數異動'
+}
+
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('zh-TW')
+  return new Date(iso).toLocaleString('zh-TW', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  })
 }
 </script>
