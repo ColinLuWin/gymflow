@@ -11,6 +11,8 @@
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div v-if="loading" class="text-center py-16 text-gray-400">載入中…</div>
 
+      <div v-else-if="error" class="text-center py-16 text-red-500 text-sm">{{ error }}</div>
+
       <template v-else>
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
@@ -64,14 +66,20 @@ import { api, type Member } from '@/lib/api'
 
 const loading = ref(true)
 const loadingMore = ref(false)
+const error = ref('')
 const members = ref<Member[]>([])
 const cursor = ref<string | null>(null)
 
 onMounted(async () => {
-  const res = await api.listMembers()
-  members.value = res.members
-  cursor.value = res.cursor
-  loading.value = false
+  try {
+    const res = await api.listMembers()
+    members.value = res.members
+    cursor.value = res.cursor
+  } catch (e: unknown) {
+    error.value = (e as Error).message ?? '載入失敗，請重新整理頁面'
+  } finally {
+    loading.value = false
+  }
 })
 
 async function loadMore() {

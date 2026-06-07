@@ -166,18 +166,28 @@ export class GymMembershipStack extends cdk.Stack {
       integration: new integrations.HttpLambdaIntegration('AuthIntegration', authHandler),
     });
 
-    // Member routes (protected)
+    // Member routes (protected) — OPTIONS must bypass authorizer for CORS preflight
     api.addRoutes({
       path: '/members/{proxy+}',
-      methods: [apigateway.HttpMethod.ANY],
+      methods: [apigateway.HttpMethod.OPTIONS],
+      integration: new integrations.HttpLambdaIntegration('MemberOptionsIntegration', memberHandler),
+    });
+    api.addRoutes({
+      path: '/members/{proxy+}',
+      methods: [apigateway.HttpMethod.GET, apigateway.HttpMethod.POST, apigateway.HttpMethod.PUT, apigateway.HttpMethod.DELETE],
       integration: new integrations.HttpLambdaIntegration('MemberIntegration', memberHandler),
       authorizer: jwtAuthorizer,
     });
 
-    // Admin routes (protected)
+    // Admin routes (protected) — OPTIONS must bypass authorizer for CORS preflight
     api.addRoutes({
       path: '/admin/{proxy+}',
-      methods: [apigateway.HttpMethod.ANY],
+      methods: [apigateway.HttpMethod.OPTIONS],
+      integration: new integrations.HttpLambdaIntegration('AdminOptionsIntegration', adminHandler),
+    });
+    api.addRoutes({
+      path: '/admin/{proxy+}',
+      methods: [apigateway.HttpMethod.GET, apigateway.HttpMethod.POST, apigateway.HttpMethod.PUT, apigateway.HttpMethod.DELETE],
       integration: new integrations.HttpLambdaIntegration('AdminIntegration', adminHandler),
       authorizer: jwtAuthorizer,
     });
