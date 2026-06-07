@@ -116,19 +116,39 @@ Browser
 - [x] `PUT /admin/members/:id` — 更新會員（name / phone）
 - [x] `PUT /admin/members/:id/suspend` — 停權（DynamoDB + Cognito disable）
 - [x] `PUT /admin/members/:id/activate` — 復權（DynamoDB + Cognito enable）
+- [x] `DELETE /admin/members/:id` — 刪除會員（DynamoDB + Cognito AdminDeleteUser）
 
 > **注意**：API Gateway HTTP API 將 Cognito JWT 的 `cognito:groups` 陣列序列化為 `[group1 group2]`（空格分隔、有中括號），需在 Lambda 內手動解析。
 
-### Phase 3 — Frontend ⬜
-- [ ] Vue 3 + Vite 專案初始化
-- [ ] S3 bucket 建立
-- [ ] CloudFront distribution
-- [ ] WAF rules（rate limit + managed rules）
-- [ ] Route53 domain（選配）
-- [ ] ACM 憑證
-- [ ] 登入 / 註冊頁面
-- [ ] 會員儀表板
-- [ ] 管理後台
+### Phase 3 — Frontend ✅
+- [x] Vue 3 + Vite 專案初始化（member-portal / admin-portal）
+- [x] S3 bucket 建立（各自獨立，Block Public Access）
+- [x] CloudFront distribution（OAC，SPA 404→index.html）
+- [x] GitHub Actions CI/CD（push apps/** → build → S3 sync → invalidate）
+- [x] 會員端：登入、註冊、email 確認、個人資料、會員方案、報到記錄
+- [x] 管理端：登入、會員列表、會員詳情、新增 / 編輯 / 停權 / 復權 / 刪除
+
+**已部署 URL**
+
+| 入口 | URL |
+|---|---|
+| Member Portal | https://dv3vkkn6m5tr2.cloudfront.net |
+| Admin Portal | https://d3h5wal582eh13.cloudfront.net |
+
+**CloudFront / S3 Resource IDs**
+
+| Resource | ID |
+|---|---|
+| Member Bucket | gymmembershipstack-memberportalbucket95c316ec-ew8zcm6erm8c |
+| Member Distribution | EQVMQPFM6A4AS |
+| Admin Bucket | gymmembershipstack-adminportalbucket11b7abcd-3hrfvsc10jld |
+| Admin Distribution | E2X3MS7RJAUZ3T |
+
+**已知行為**
+
+- Cognito 預設寄件人（`no-reply@verificationemail.com`）可能進垃圾信件匣；確認碼頁面已顯示提示。
+- CORS preflight（OPTIONS）不可帶 JWT authorizer；protected routes 需拆出獨立 OPTIONS route。
+- 管理端帳號不開放自助註冊，需由管理員透過 AdminCreateUser 建立。
 
 ### Phase 4 — Core Features ⬜
 **課程與預約**
@@ -193,3 +213,7 @@ gymflow/
 |---|---|---|
 | 2026-06-06 | Phase 1 | 初始化 CDK 專案，部署 DynamoDB / Cognito / API Gateway / Lambda 骨架 |
 | 2026-06-06 | Phase 2 | 實作 Auth / Member / Admin Lambda handler，端對端測試通過 |
+| 2026-06-07 | Phase 3 | 實作 Member / Admin Portal（Vue 3），部署 S3 + CloudFront，GitHub Actions CI/CD |
+| 2026-06-07 | Fix | 修正 CORS preflight 被 JWT authorizer 攔截（OPTIONS route 需獨立、不帶 authorizer） |
+| 2026-06-07 | Fix | 修正 CORS preflight 被 API Gateway corsPreflight 設定回 404（改由 Lambda 自行回應） |
+| 2026-06-07 | Feat | Admin Portal 新增刪除會員功能（DELETE /admin/members/:id） |
