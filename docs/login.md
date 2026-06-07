@@ -37,7 +37,7 @@ https://d3h5wal582eh13.cloudfront.net
 | 欄位 | 值 |
 |------|-----|
 | Email | `test@example.com` |
-| 密碼 | `[填入密碼]` |
+| 密碼 | `Test1234` |
 | 群組 | `admin` + `member` |
 | 備註 | 可存取所有管理功能、發點數、管理獎勵 |
 
@@ -46,7 +46,7 @@ https://d3h5wal582eh13.cloudfront.net
 | 欄位 | 值 |
 |------|-----|
 | Email | `colinlu.win@gmail.com` |
-| 密碼 | `[填入密碼]` |
+| 密碼 | `Test1123` |
 | 群組 | `member` |
 | 備註 | 一般會員，可查看點數、兌換獎勵 |
 
