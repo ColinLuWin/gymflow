@@ -10,10 +10,16 @@ import {
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE_NAME = process.env.TABLE_NAME!;
 
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+};
+
 function ok(body: unknown, status = 200): APIGatewayProxyResultV2 {
   return {
     statusCode: status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...CORS },
     body: JSON.stringify(body),
   };
 }
@@ -21,7 +27,7 @@ function ok(body: unknown, status = 200): APIGatewayProxyResultV2 {
 function err(message: string, status: number): APIGatewayProxyResultV2 {
   return {
     statusCode: status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...CORS },
     body: JSON.stringify({ message }),
   };
 }
@@ -133,6 +139,8 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   const path = event.requestContext.http.path;
 
   console.log({ method, path });
+
+  if (method === 'OPTIONS') return { statusCode: 200, headers: { ...CORS }, body: '' };
 
   const sub = getSub(event);
   if (!sub) return err('Unauthorized', 401);

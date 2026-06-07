@@ -137,11 +137,6 @@ export class GymMembershipStack extends cdk.Stack {
     // ── API Gateway ───────────────────────────────────────────────────────
     const api = new apigateway.HttpApi(this, 'GymApi', {
       apiName: 'gym-membership-api',
-      corsPreflight: {
-        allowHeaders: ['Content-Type', 'Authorization'],
-        allowMethods: [apigateway.CorsHttpMethod.ANY],
-        allowOrigins: ['*'],
-      },
     });
 
     const jwtAuthorizer = new authorizers.HttpJwtAuthorizer(
