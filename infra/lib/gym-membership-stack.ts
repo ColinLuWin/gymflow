@@ -46,11 +46,6 @@ export class GymMembershipStack extends cdk.Stack {
       selfSignUpEnabled: true,
       signInAliases: { email: true },
       autoVerify: { email: true },
-      email: cognito.UserPoolEmail.withSES({
-        fromEmail: 'colinlu.win@gmail.com',
-        fromName: 'GymFlow',
-        sesRegion: 'ap-northeast-1',
-      }),
       passwordPolicy: {
         minLength: 8,
         requireLowercase: true,

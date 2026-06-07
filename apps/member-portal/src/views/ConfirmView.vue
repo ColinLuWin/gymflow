@@ -2,10 +2,13 @@
   <div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 w-full max-w-sm p-8">
       <h1 class="text-xl font-bold text-gray-900 mb-1">驗證 Email</h1>
-      <p class="text-gray-500 text-sm mb-7">
+      <p class="text-gray-500 text-sm mb-4">
         確認碼已寄送至<br />
         <span class="font-medium text-gray-700">{{ email }}</span>
       </p>
+      <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-5 text-xs text-amber-700">
+        若未收到，請檢查垃圾信件匣。寄件人為 <span class="font-medium">no-reply@verificationemail.com</span>
+      </div>
 
       <form @submit.prevent="submit" class="space-y-4">
         <div>
