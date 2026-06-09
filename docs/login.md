@@ -7,6 +7,7 @@
 | **Member Portal（會員端）** | https://dv3vkkn6m5tr2.cloudfront.net |
 | **Admin Portal（管理/教練端）** | https://d3h5wal582eh13.cloudfront.net |
 | **API Gateway** | https://qg9vkjbzhf.execute-api.ap-northeast-1.amazonaws.com |
+| **Cognito Hosted UI** | https://gymflow-auth.auth.ap-northeast-1.amazoncognito.com |
 
 ---
 
@@ -30,27 +31,31 @@ https://d3h5wal582eh13.cloudfront.net
 
 ---
 
-## 測試帳號
+## 登入方式
 
-### 管理員 / 教練帳號（Admin Portal 登入）
+### Member Portal（會員端）
 
-| 欄位 | 值 |
-|------|-----|
-| Email | `test@example.com` |
-| 密碼 | `Test1234` |
-| 群組 | `admin` + `member` |
-| 備註 | 可存取所有管理功能、發點數、管理獎勵 |
+| 方式 | 說明 |
+|------|------|
+| Google 登入 | 任何 Google 帳號皆可，首次登入自動建立會員資料 |
+| LINE 登入 | 須先用 Google 登入，至「個人資料」頁完成 LINE 帳號綁定後才可使用 |
 
-### 會員帳號（Member Portal 登入）
+### Admin Portal（管理端）
 
-| 欄位 | 值 |
-|------|-----|
-| Email | `colinlu.win@gmail.com` |
-| 密碼 | `Test1123` |
-| 群組 | `member` |
-| 備註 | 一般會員，可查看點數、兌換獎勵 |
+| 方式 | 說明 |
+|------|------|
+| Google 登入 | 僅限已加入 Cognito `admin` group 的 Google 帳號 |
 
-> **注意：** 若忘記密碼，可透過 Cognito Console 重設，或在登入頁使用「忘記密碼」功能。
+> **新管理員設定流程：**
+> 1. 至 Admin Portal 用 Google 帳號登入一次（Cognito 會建立 `Google_<id>` 用戶）
+> 2. 執行以下指令將帳號加入 admin group：
+> ```bash
+> aws cognito-idp admin-add-user-to-group \
+>   --user-pool-id ap-northeast-1_MFrLXG4E6 \
+>   --username "Google_<googleId>" \
+>   --group-name admin
+> ```
+> 3. 登出後重新登入（新 token 才包含 group 資訊）
 
 ---
 
@@ -60,7 +65,9 @@ https://d3h5wal582eh13.cloudfront.net
 |------|-----|
 | Region | `ap-northeast-1`（東京） |
 | Cognito User Pool ID | `ap-northeast-1_MFrLXG4E6` |
-| Cognito Client ID | `1lavucbgsrt5ipkg2a3dss4om6` |
+| Cognito Client ID（Member Portal） | `1lavucbgsrt5ipkg2a3dss4om6` |
+| Cognito Client ID（Admin Portal） | `2dv70m8clceqk70ak01jf0ckk8` |
+| LINE Channel ID | `2010350151` |
 | DynamoDB Table | `gym-membership` |
 | CloudFormation Stack | `GymMembershipStack` |
 | AWS Account | `461340168702` |
@@ -78,6 +85,7 @@ https://d3h5wal582eh13.cloudfront.net
 | 儀表板 | `/dashboard` | 會員狀態 |
 | 我的點數 | `/points` | QR Code + 點數餘額 + 異動記錄 |
 | 兌換獎勵 | `/rewards` | 獎勵目錄 + 兌換 + 我的兌換記錄 |
+| 個人資料 | `/profile` | 更新資料、管理 LINE 帳號綁定 |
 
 ### Admin Portal
 

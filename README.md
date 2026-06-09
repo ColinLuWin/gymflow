@@ -5,16 +5,19 @@
 ## 功能概覽
 
 **會員端 (`apps/member-portal`)**
-- 登入 / 註冊
-- 查詢會員方案與到期日
-- 課程預約與取消
-- 報到記錄查詢
+- Google / LINE 社交登入（PKCE）
+- LINE 帳號綁定（個人資料頁）
+- 點數查詢、兌換獎勵
+- 查詢會員方案與到期日（規劃中）
+- 課程預約與取消（規劃中）
 
 **管理者端 (`apps/admin-portal`)**
+- Google 登入（PKCE）
 - 會員管理（新增、停權、復權）
-- 報到統計
-- 課程與教練管理
-- 到期提醒通知
+- 點數發放、獎勵商品管理、兌換記錄
+- QR Code 掃描發點
+- 課程與教練管理（規劃中）
+- 到期提醒通知（規劃中）
 
 ## 技術架構
 
@@ -34,12 +37,12 @@ Browser
 
 | 層級 | 技術 |
 |---|---|
-| Frontend | Vue 3 + Vite (planned) |
+| Frontend | Vue 3 + Vite + Pinia + Tailwind CSS |
 | API | AWS API Gateway HTTP API |
 | Backend | AWS Lambda (Node.js 20, TypeScript) |
-| Auth | AWS Cognito (JWT) |
+| Auth | AWS Cognito（PKCE + Google / LINE 社交登入） |
 | Database | AWS DynamoDB (Single-Table) |
-| CDN | AWS CloudFront + S3 (planned) |
+| CDN | AWS CloudFront + S3 |
 | IaC | AWS CDK (TypeScript) |
 | Region | ap-northeast-1 (Tokyo) |
 
@@ -51,8 +54,9 @@ gymflow/
 │   ├── member-portal/     # 會員端網頁
 │   └── admin-portal/      # 管理者端網頁
 ├── services/
-│   ├── auth/              # Lambda — 認證 (register / login / refresh)
-│   └── member/            # Lambda — 會員資料 CRUD
+│   ├── auth/              # Lambda — token refresh / LINE 帳號綁定
+│   ├── member/            # Lambda — 會員資料 CRUD
+│   └── admin/             # Lambda — 管理端 API
 ├── infra/                 # AWS CDK stack
 ├── packages/
 │   └── shared-types/      # 前後端共用 TypeScript 型別

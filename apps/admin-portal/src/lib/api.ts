@@ -67,12 +67,6 @@ export interface Member {
 }
 
 export const api = {
-  login: (email: string, password: string) =>
-    request<{ idToken: string; accessToken: string; refreshToken: string }>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }),
-
   listMembers: (cursor?: string) =>
     request<{ members: Member[]; cursor: string | null }>(
       `/admin/members${cursor ? `?cursor=${cursor}` : ''}`,

@@ -10,8 +10,12 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as path from 'path';
 import { Construct } from 'constructs';
+
+const MEMBER_PORTAL_URL = 'https://dv3vkkn6m5tr2.cloudfront.net';
+const ADMIN_PORTAL_URL  = 'https://d3h5wal582eh13.cloudfront.net';
 
 export class GymMembershipStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -26,21 +30,19 @@ export class GymMembershipStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // GSI: 查詢到期會員 (PK=membershipStatus, SK=expiryDate)
     table.addGlobalSecondaryIndex({
       indexName: 'status-expiry-index',
       partitionKey: { name: 'membershipStatus', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'expiryDate', type: dynamodb.AttributeType.STRING },
     });
 
-    // GSI: 報到統計 (PK=locationId, SK=checkinAt)
     table.addGlobalSecondaryIndex({
       indexName: 'checkin-date-index',
       partitionKey: { name: 'locationId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'checkinAt', type: dynamodb.AttributeType.STRING },
     });
 
-    // ── Cognito ───────────────────────────────────────────────────────────
+    // ── Cognito User Pool ─────────────────────────────────────────────────
     const userPool = new cognito.UserPool(this, 'GymUserPool', {
       userPoolName: 'gym-membership-users',
       selfSignUpEnabled: true,
@@ -57,36 +59,107 @@ export class GymMembershipStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    const userPoolClient = new cognito.UserPoolClient(this, 'GymUserPoolClient', {
+    new cognito.CfnUserPoolGroup(this, 'AdminGroup',   { userPoolId: userPool.userPoolId, groupName: 'admin' });
+    new cognito.CfnUserPoolGroup(this, 'TrainerGroup', { userPoolId: userPool.userPoolId, groupName: 'trainer' });
+    new cognito.CfnUserPoolGroup(this, 'MemberGroup',  { userPoolId: userPool.userPoolId, groupName: 'member' });
+
+    // ── Cognito Hosted UI Domain ──────────────────────────────────────────
+    const userPoolDomain = new cognito.UserPoolDomain(this, 'GymUserPoolDomain', {
       userPool,
-      authFlows: {
-        userPassword: true,
-        userSrp: true,
+      cognitoDomain: { domainPrefix: 'gymflow-auth' },
+    });
+
+    // ── OAuth Secrets (Secrets Manager) ──────────────────────────────────
+    const googleSecret = secretsmanager.Secret.fromSecretNameV2(
+      this, 'GoogleOAuthSecret', 'gymflow/google-oauth'
+    );
+    const lineSecret = secretsmanager.Secret.fromSecretNameV2(
+      this, 'LineOAuthSecret', 'gymflow/line'
+    );
+
+    // ── Google Identity Provider ──────────────────────────────────────────
+    const googleProvider = new cognito.UserPoolIdentityProviderGoogle(this, 'GoogleProvider', {
+      userPool,
+      clientId: googleSecret.secretValueFromJson('clientId').unsafeUnwrap(),
+      clientSecretValue: googleSecret.secretValueFromJson('clientSecret'),
+      scopes: ['email', 'profile', 'openid'],
+      attributeMapping: {
+        email:          cognito.ProviderAttribute.GOOGLE_EMAIL,
+        fullname:       cognito.ProviderAttribute.GOOGLE_NAME,
+        profilePicture: cognito.ProviderAttribute.GOOGLE_PICTURE,
       },
+    });
+
+    // ── LINE OIDC Identity Provider ───────────────────────────────────────
+    // LINE OIDC discovery: https://access.line.me/.well-known/openid-configuration
+    // email scope requires LINE Business email permission — omitted intentionally
+    const lineProvider = new cognito.UserPoolIdentityProviderOidc(this, 'LineProvider', {
+      userPool,
+      name: 'LINE',
+      clientId:     lineSecret.secretValueFromJson('clientId').unsafeUnwrap(),
+      clientSecret: lineSecret.secretValueFromJson('clientSecret').unsafeUnwrap(),
+      issuerUrl: 'https://access.line.me',
+      scopes: ['openid', 'profile'],
+      attributeRequestMethod: cognito.OidcAttributeRequestMethod.GET,
+      attributeMapping: {
+        fullname:       cognito.ProviderAttribute.other('name'),
+        profilePicture: cognito.ProviderAttribute.other('picture'),
+      },
+    });
+
+    // ── Member Portal UserPoolClient ──────────────────────────────────────
+    const memberUserPoolClient = new cognito.UserPoolClient(this, 'GymUserPoolClient', {
+      userPool,
       generateSecret: false,
+      oAuth: {
+        flows: { authorizationCodeGrant: true },
+        scopes: [cognito.OAuthScope.EMAIL, cognito.OAuthScope.OPENID, cognito.OAuthScope.PROFILE],
+        callbackUrls: [
+          `${MEMBER_PORTAL_URL}/callback`,
+          `${MEMBER_PORTAL_URL}/link-callback`,
+          'http://localhost:5173/callback',
+          'http://localhost:5173/link-callback',
+        ],
+        logoutUrls: [
+          `${MEMBER_PORTAL_URL}/login`,
+          'http://localhost:5173/login',
+        ],
+      },
+      supportedIdentityProviders: [
+        cognito.UserPoolClientIdentityProvider.GOOGLE,
+        cognito.UserPoolClientIdentityProvider.custom('LINE'),
+      ],
     });
+    memberUserPoolClient.node.addDependency(googleProvider);
+    memberUserPoolClient.node.addDependency(lineProvider);
 
-    // 角色群組
-    new cognito.CfnUserPoolGroup(this, 'AdminGroup', {
-      userPoolId: userPool.userPoolId,
-      groupName: 'admin',
+    // ── Admin Portal UserPoolClient ───────────────────────────────────────
+    const adminUserPoolClient = new cognito.UserPoolClient(this, 'AdminUserPoolClient', {
+      userPool,
+      generateSecret: false,
+      oAuth: {
+        flows: { authorizationCodeGrant: true },
+        scopes: [cognito.OAuthScope.EMAIL, cognito.OAuthScope.OPENID, cognito.OAuthScope.PROFILE],
+        callbackUrls: [
+          `${ADMIN_PORTAL_URL}/callback`,
+          'http://localhost:5174/callback',
+        ],
+        logoutUrls: [
+          `${ADMIN_PORTAL_URL}/login`,
+          'http://localhost:5174/login',
+        ],
+      },
+      supportedIdentityProviders: [
+        cognito.UserPoolClientIdentityProvider.GOOGLE,
+      ],
     });
-
-    new cognito.CfnUserPoolGroup(this, 'TrainerGroup', {
-      userPoolId: userPool.userPoolId,
-      groupName: 'trainer',
-    });
-
-    new cognito.CfnUserPoolGroup(this, 'MemberGroup', {
-      userPoolId: userPool.userPoolId,
-      groupName: 'member',
-    });
+    adminUserPoolClient.node.addDependency(googleProvider);
 
     // ── Lambda functions ──────────────────────────────────────────────────
     const commonEnv = {
-      TABLE_NAME: table.tableName,
-      USER_POOL_ID: userPool.userPoolId,
-      USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+      TABLE_NAME:           table.tableName,
+      USER_POOL_ID:         userPool.userPoolId,
+      USER_POOL_CLIENT_ID:  memberUserPoolClient.userPoolClientId,
     };
 
     const servicesLockFile = path.join(__dirname, '../../services/package-lock.json');
@@ -115,36 +188,63 @@ export class GymMembershipStack extends cdk.Stack {
       depsLockFilePath: servicesLockFile,
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
-      environment: commonEnv,
+      environment: {
+        ...commonEnv,
+        LINE_CLIENT_ID:     lineSecret.secretValueFromJson('clientId').unsafeUnwrap(),
+        LINE_CLIENT_SECRET: lineSecret.secretValueFromJson('clientSecret').unsafeUnwrap(),
+      },
     });
 
+    // PostConfirmation trigger — creates DynamoDB member profile on first
+    // Google/LINE sign-in and adds the user to the Cognito 'member' group.
+    // NOTE: USER_POOL_ID is intentionally absent from env — it's read from
+    // event.userPoolId at runtime to avoid a CDK circular dependency:
+    //   UserPool → Lambda(trigger) → UserPoolClient → UserPool
+    const postConfirmHandler = new nodejs.NodejsFunction(this, 'PostConfirmHandler', {
+      functionName: 'gym-post-confirm-handler',
+      entry: path.join(__dirname, '../../services/auth/postConfirmation.ts'),
+      depsLockFilePath: servicesLockFile,
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        TABLE_NAME: table.tableName,
+      },
+    });
+
+    // Escape hatch: set LambdaConfig directly on CfnUserPool instead of using
+    // userPool.addTrigger(), which creates a circular dependency by adding a
+    // Lambda permission with sourceArn pointing back to the UserPool.
+    const cfnUserPool = userPool.node.defaultChild as cognito.CfnUserPool;
+    cfnUserPool.addPropertyOverride('LambdaConfig.PostConfirmation', postConfirmHandler.functionArn);
+
+    // Use sourceAccount (static string) instead of sourceArn to avoid creating
+    // a token reference from Lambda back to UserPool.
+    postConfirmHandler.addPermission('CognitoPostConfirm', {
+      principal: new iam.ServicePrincipal('cognito-idp.amazonaws.com'),
+      sourceAccount: this.account,
+    });
+
+    // ── IAM ───────────────────────────────────────────────────────────────
     table.grantReadWriteData(memberHandler);
     table.grantReadWriteData(authHandler);
     table.grantReadWriteData(adminHandler);
+    table.grantReadWriteData(postConfirmHandler);
+
+    postConfirmHandler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['cognito-idp:AdminAddUserToGroup'],
+        resources: ['*'],
+      })
+    );
 
     authHandler.addToRolePolicy(
       new iam.PolicyStatement({
         actions: [
-          'cognito-idp:SignUp',
-          'cognito-idp:ConfirmSignUp',
           'cognito-idp:InitiateAuth',
-          'cognito-idp:AdminAddUserToGroup',
+          'cognito-idp:AdminLinkProviderForUser',
         ],
         resources: [userPool.userPoolArn],
       })
-    );
-
-    // ── API Gateway ───────────────────────────────────────────────────────
-    const api = new apigateway.HttpApi(this, 'GymApi', {
-      apiName: 'gym-membership-api',
-    });
-
-    const jwtAuthorizer = new authorizers.HttpJwtAuthorizer(
-      'CognitoAuthorizer',
-      `https://cognito-idp.ap-northeast-1.amazonaws.com/${userPool.userPoolId}`,
-      {
-        jwtAudience: [userPoolClient.userPoolClientId],
-      }
     );
 
     adminHandler.addToRolePolicy(
@@ -160,14 +260,37 @@ export class GymMembershipStack extends cdk.Stack {
       })
     );
 
-    // Auth routes (public)
+    // ── API Gateway ───────────────────────────────────────────────────────
+    const api = new apigateway.HttpApi(this, 'GymApi', {
+      apiName: 'gym-membership-api',
+    });
+
+    // Accept tokens from both member and admin clients
+    const jwtAuthorizer = new authorizers.HttpJwtAuthorizer(
+      'CognitoAuthorizer',
+      `https://cognito-idp.ap-northeast-1.amazonaws.com/${userPool.userPoolId}`,
+      {
+        jwtAudience: [
+          memberUserPoolClient.userPoolClientId,
+          adminUserPoolClient.userPoolClientId,
+        ],
+      }
+    );
+
+    // /auth/link/line requires a valid JWT — add before the catch-all wildcard
+    api.addRoutes({
+      path: '/auth/link/line',
+      methods: [apigateway.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration('LinkLineIntegration', authHandler),
+      authorizer: jwtAuthorizer,
+    });
+
     api.addRoutes({
       path: '/auth/{proxy+}',
       methods: [apigateway.HttpMethod.ANY],
       integration: new integrations.HttpLambdaIntegration('AuthIntegration', authHandler),
     });
 
-    // Member routes (protected) — OPTIONS must bypass authorizer for CORS preflight
     api.addRoutes({
       path: '/members/{proxy+}',
       methods: [apigateway.HttpMethod.OPTIONS],
@@ -180,7 +303,6 @@ export class GymMembershipStack extends cdk.Stack {
       authorizer: jwtAuthorizer,
     });
 
-    // Admin routes (protected) — OPTIONS must bypass authorizer for CORS preflight
     api.addRoutes({
       path: '/admin/{proxy+}',
       methods: [apigateway.HttpMethod.OPTIONS],
@@ -242,7 +364,18 @@ export class GymMembershipStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, 'UserPoolClientId', {
-      value: userPoolClient.userPoolClientId,
+      value: memberUserPoolClient.userPoolClientId,
+      description: 'Member portal Cognito client ID',
+    });
+
+    new cdk.CfnOutput(this, 'AdminUserPoolClientId', {
+      value: adminUserPoolClient.userPoolClientId,
+      description: 'Admin portal Cognito client ID',
+    });
+
+    new cdk.CfnOutput(this, 'CognitoDomain', {
+      value: `https://${userPoolDomain.domainName}.auth.ap-northeast-1.amazoncognito.com`,
+      description: 'Cognito Hosted UI base URL',
     });
 
     new cdk.CfnOutput(this, 'TableName', {

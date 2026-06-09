@@ -4,7 +4,8 @@ import { useAuthStore } from '@/stores/auth'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/login', component: () => import('@/views/LoginView.vue'), meta: { public: true } },
+    { path: '/login',    component: () => import('@/views/LoginView.vue'),    meta: { public: true } },
+    { path: '/callback', component: () => import('@/views/CallbackView.vue'), meta: { public: true } },
     { path: '/members', component: () => import('@/views/MembersView.vue') },
     { path: '/members/new', component: () => import('@/views/MemberNewView.vue') },
     { path: '/members/:id', component: () => import('@/views/MemberDetailView.vue') },

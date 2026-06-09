@@ -1,6 +1,6 @@
 # Gymflow — 系統架構文件
 
-> 最後更新：2026-06-07（Phase 3.5 完成）
+> 最後更新：2026-06-10（Phase 3.6 完成）
 
 ---
 
@@ -13,7 +13,9 @@ Gymflow 是一套健身房會員管理系統，採用 **AWS 全無伺服器（Se
 
 | 功能 | 狀態 |
 |---|---|
-| 會員註冊 / 登入 / Email 確認 | ✅ |
+| Google 登入（會員端 + 管理端） | ✅ |
+| LINE 登入（會員端，需先綁定） | ✅ |
+| LINE 帳號綁定（個人資料頁） | ✅ |
 | 個人資料查詢與更新 | ✅ |
 | 點數發放、查詢、兌換、撤銷 | ✅ |
 | 獎勵商品管理（建立 / 上下架 / 刪除） | ✅ |
@@ -60,11 +62,13 @@ Gymflow 是一套健身房會員管理系統，採用 **AWS 全無伺服器（Se
                                                ├── DynamoDB: gym-membership
                                                └── Cognito: AdminCreateUser 等
 
-  ┌──────────────────────────┐
-  │  Cognito User Pool       │
-  │  ap-northeast-1_MFrLXG4E6│
-  │  Groups: admin / trainer / member │
-  └──────────────────────────┘
+  ┌──────────────────────────────────────────┐
+  │  Cognito User Pool                       │
+  │  ap-northeast-1_MFrLXG4E6               │
+  │  Identity Providers: Google OIDC / LINE OIDC │
+  │  Groups: admin / trainer / member        │
+  │  Hosted UI (PKCE / authorizationCodeGrant)│
+  └──────────────────────────────────────────┘
 ```
 
 ---
@@ -77,9 +81,10 @@ Gymflow 是一套健身房會員管理系統，採用 **AWS 全無伺服器（Se
 | CloudFormation | GymMembershipStack | 所有資源統一管理 |
 | DynamoDB | `gym-membership` | 主資料庫（PAY_PER_REQUEST） |
 | Cognito User Pool | `ap-northeast-1_MFrLXG4E6` | 身份驗證、JWT 發行 |
-| Cognito Client | `1lavucbgsrt5ipkg2a3dss4om6` | SPA 使用（無 secret） |
+| Cognito Client (Member) | `1lavucbgsrt5ipkg2a3dss4om6` | Member Portal PKCE（Google + LINE） |
+| Cognito Client (Admin) | `2dv70m8clceqk70ak01jf0ckk8` | Admin Portal PKCE（Google only） |
 | API Gateway HTTP API | `qg9vkjbzhf.execute-api` | HTTP 路由入口 |
-| Lambda | `gym-auth-handler` | 註冊 / 登入 / 確認 / Refresh |
+| Lambda | `gym-auth-handler` | Token Refresh / LINE 帳號綁定（timeout: 15s） |
 | Lambda | `gym-member-handler` | 會員自助 API |
 | Lambda | `gym-admin-handler` | 管理員 / 教練 API |
 | S3 Bucket | `gymmembershipstack-memberportalbucket*` | Member Portal 靜態資源 |
@@ -147,7 +152,7 @@ api.addRoutes({ path: '/members/{proxy+}', methods: [...], authorizer: jwtAuthor
 
 | Lambda | DynamoDB | Cognito |
 |---|---|---|
-| auth-handler | ReadWrite | SignUp, ConfirmSignUp, InitiateAuth, AdminAddUserToGroup |
+| auth-handler | ReadWrite（PROFILE 更新） | InitiateAuth（refresh）, AdminLinkProviderForUser（LINE 綁定） |
 | member-handler | ReadWrite | 無（只讀 JWT claims） |
 | admin-handler | ReadWrite | AdminCreateUser, AdminDeleteUser, AdminDisableUser, AdminEnableUser, AdminAddUserToGroup |
 
@@ -198,21 +203,52 @@ function isAdmin(event): boolean {
 
 ## 認證流程
 
+### Google 登入（PKCE）
+
 ```
-會員自助註冊：
-  POST /auth/register → Cognito SignUp → 加入 member group → 寫 PROFILE
-  → Email 驗證碼
-  POST /auth/confirm → Cognito ConfirmSignUp
-  POST /auth/login → Cognito InitiateAuth → 回傳 idToken + accessToken + refreshToken
+1. 前端生成 code_verifier（32 bytes random）→ SHA-256 → code_challenge
+2. 跳轉 Cognito Hosted UI：
+     /oauth2/authorize?identity_provider=Google&response_type=code
+       &code_challenge=<S256>&code_challenge_method=S256&...
+3. Cognito → Google OAuth 授權頁
+4. 用戶同意 → Google 回呼 Cognito → Cognito 回呼前端 /callback?code=<code>
+5. 前端 POST /oauth2/token { grant_type=authorization_code, code, code_verifier }
+6. 取得 id_token + access_token + refresh_token，存於 localStorage
+7. PostConfirmation Lambda trigger：首次登入自動加入 member group、寫 DynamoDB PROFILE
+```
 
-管理員建立會員：
-  POST /admin/members → Cognito AdminCreateUser（系統生成臨時密碼、寄 email）
+### LINE 帳號綁定（已登入後）
+
+```
+1. 個人資料頁 → 按「綁定 LINE」→ 前端生成 CSRF state（UUID）存 sessionStorage
+2. 跳轉 LINE OAuth：https://access.line.me/oauth2/v2.1/authorize?scope=openid profile&state=<uuid>
+3. 用戶同意 → LINE 回呼前端 /link-callback?code=<code>&state=<uuid>
+4. 前端驗證 state（防 CSRF）→ POST /auth/link/line { code, redirectUri }（帶 Bearer token）
+5. Lambda 向 LINE API 換 id_token → 取出 LINE sub
+6. AdminLinkProviderForUserCommand 連結 LINE 身份至 Cognito 用戶
+7. 更新 DynamoDB PROFILE.lineUserId
+```
+
+### LINE 登入（已綁定後）
+
+```
+與 Google 登入相同，改傳 identity_provider=LINE
+```
+
+### 管理員建立會員
+
+```
+POST /admin/members → Cognito AdminCreateUser（系統生成臨時密碼、寄 email）
   → 加入 member group → 寫 PROFILE
+（會員不再自助註冊）
+```
 
-Token 使用：
-  API 呼叫帶 Authorization: Bearer <idToken>
-  API Gateway 驗證簽章 + audience
-  Lambda 從 requestContext 取 claims（sub, cognito:groups）
+### Token 使用
+
+```
+API 呼叫帶 Authorization: Bearer <idToken>
+API Gateway 驗證簽章 + audience
+Lambda 從 requestContext 取 claims（sub, cognito:groups）
 
 Token Refresh：
   POST /auth/refresh { refreshToken } → 回傳新 idToken + accessToken
@@ -226,10 +262,9 @@ Token Refresh：
 
 | Method | Path | 說明 |
 |---|---|---|
-| POST | `/auth/register` | 會員自助註冊 |
-| POST | `/auth/confirm` | 確認 Email |
-| POST | `/auth/login` | 登入，取得 tokens |
-| POST | `/auth/refresh` | 刷新 tokens |
+| POST | `/auth/refresh` | 刷新 tokens（REFRESH_TOKEN_AUTH） |
+
+> 登入流程改由 Cognito Hosted UI 處理（PKCE），前端直接與 Cognito `/oauth2/token` 溝通，不經過本系統 API。
 
 ### 會員路由（需 JWT，member group）
 
@@ -244,6 +279,12 @@ Token Refresh：
 | GET | `/members/rewards` | 瀏覽可兌換獎勵 |
 | POST | `/members/me/redemptions` | 兌換獎勵 |
 | GET | `/members/me/redemptions` | 查詢兌換記錄 |
+
+### 受保護路由（需 JWT，auth-handler）
+
+| Method | Path | 說明 |
+|---|---|---|
+| POST | `/auth/link/line` | 綁定 LINE 帳號（需登入） |
 
 ### 管理員路由（需 JWT，admin group；部分 trainer 可用）
 
@@ -302,8 +343,10 @@ Lambda 與 CDK stack 尚未接入 CI/CD，目前手動 `cdk deploy`。
 |---|---|
 | CORS OPTIONS | OPTIONS preflight 不可帶 JWT Authorizer；由 Lambda 自行回應 200 + CORS headers |
 | Cognito groups 格式 | API Gateway HTTP API 將 groups 序列化為 `[group1 group2]` 字串，需手動 parse |
-| Cognito 驗證信 | 預設寄件人 `no-reply@verificationemail.com`，可能進垃圾信件匣 |
-| Admin 自助註冊 | 管理員帳號不開放自助註冊，需由管理員透過 AdminCreateUser 建立 |
+| Admin Google 帳號 | 用 Google 聯合登入的管理者須手動執行 `admin-add-user-to-group` 加入 admin group（Cognito username 格式：`Google_<googleId>`） |
+| LINE 登入前置 | 用戶必須先登入後透過「個人資料 → 綁定 LINE」完成綁定，才能用 LINE 登入 |
+| Admin Portal | 管理端只開放 Google 登入，不支援 LINE |
+| auth Lambda timeout | 15 秒（LINE 綁定需呼叫 LINE API + Cognito + DynamoDB，3 秒不夠） |
 | CloudFront Cache | 目前 CACHING_DISABLED（方便開發），正式上線前應設定適當 Cache Policy |
 | listMembers Scan | 會員列表使用 DynamoDB Scan + FilterExpression，資料量大時效能下降（Phase 4 前需優化） |
 | listRewards Scan | 獎勵列表同上 |

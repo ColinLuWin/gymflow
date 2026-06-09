@@ -30,6 +30,7 @@ export interface Profile {
   email: string
   name: string
   phone?: string
+  lineUserId?: string
   status: string
   createdAt: string
   updatedAt: string
@@ -78,22 +79,10 @@ export interface Redemption {
 }
 
 export const api = {
-  register: (email: string, password: string, name: string) =>
-    request<{ message: string; sub: string }>('/auth/register', {
+  linkLine: (code: string, redirectUri: string) =>
+    request<{ lineUserId: string }>('/auth/link/line', {
       method: 'POST',
-      body: JSON.stringify({ email, password, name }),
-    }),
-
-  confirm: (email: string, code: string) =>
-    request<{ message: string }>('/auth/confirm', {
-      method: 'POST',
-      body: JSON.stringify({ email, code }),
-    }),
-
-  login: (email: string, password: string) =>
-    request<{ idToken: string; accessToken: string; refreshToken: string }>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ code, redirectUri }),
     }),
 
   getProfile: () => request<Profile>('/members/me'),
