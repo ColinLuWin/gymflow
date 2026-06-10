@@ -32,6 +32,9 @@ jobs:
         run: npm ci && npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_COGNITO_DOMAIN: ${{ secrets.VITE_COGNITO_DOMAIN }}
+          VITE_COGNITO_CLIENT_ID: ${{ secrets.VITE_MEMBER_COGNITO_CLIENT_ID }}
+          VITE_LINE_CLIENT_ID: ${{ secrets.VITE_LINE_CLIENT_ID }}
 
       - name: Deploy to S3
         run: aws s3 sync apps/member-portal/dist s3://${{ secrets.MEMBER_BUCKET_NAME }} --delete
@@ -66,6 +69,8 @@ jobs:
         run: npm ci && npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_COGNITO_DOMAIN: ${{ secrets.VITE_COGNITO_DOMAIN }}
+          VITE_COGNITO_CLIENT_ID: ${{ secrets.VITE_ADMIN_COGNITO_CLIENT_ID }}
 
       - name: Deploy to S3
         run: aws s3 sync apps/admin-portal/dist s3://${{ secrets.ADMIN_BUCKET_NAME }} --delete
