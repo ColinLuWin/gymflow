@@ -600,9 +600,8 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   const callerIsAdmin = isAdmin(event);
 
   try {
-    // GET /admin/members
+    // GET /admin/members — trainer + admin
     if (method === 'GET' && path === '/admin/members') {
-      if (!callerIsAdmin) return err('Forbidden', 403);
       return await listMembers(event);
     }
 
@@ -634,18 +633,16 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       if (method === 'DELETE') return await deleteReward(rewardId);
     }
 
-    // GET /admin/members/:id/redemptions/:redemptionId
+    // GET /admin/members/:id/redemptions/:redemptionId — trainer + admin (scan flow)
     const redemptionGetMatch = path.match(/^\/admin\/members\/([^/]+)\/redemptions\/([^/]+)$/);
     if (redemptionGetMatch) {
-      if (!callerIsAdmin) return err('Forbidden', 403);
       const [, memberId, redemptionId] = redemptionGetMatch;
       if (method === 'GET') return await getRedemption(memberId, redemptionId);
     }
 
-    // POST /admin/members/:id/redemptions/:redemptionId/use
+    // POST /admin/members/:id/redemptions/:redemptionId/use — trainer + admin (scan flow)
     const useMatch = path.match(/^\/admin\/members\/([^/]+)\/redemptions\/([^/]+)\/use$/);
     if (useMatch) {
-      if (!callerIsAdmin) return err('Forbidden', 403);
       const [, memberId, redemptionId] = useMatch;
       if (method === 'POST') return await useRedemption(memberId, redemptionId);
     }
@@ -665,8 +662,8 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       const action = memberMatch[2];
 
       if (!action) {
+        if (method === 'GET') return await getMember(id);  // trainer + admin
         if (!callerIsAdmin) return err('Forbidden', 403);
-        if (method === 'GET') return await getMember(id);
         if (method === 'PUT') return await updateMember(id, event);
         if (method === 'DELETE') return await deleteMember(id);
       }
