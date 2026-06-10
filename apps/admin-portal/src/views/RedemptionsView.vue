@@ -27,9 +27,9 @@
               <td class="px-5 py-4 text-gray-700">{{ r.pointsCost }} 點</td>
               <td class="px-5 py-4 text-gray-500 text-xs">{{ formatDate(r.redeemedAt) }}</td>
               <td class="px-5 py-4">
-                <span :class="r.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                <span :class="r.status === 'active' ? 'bg-green-100 text-green-700' : r.status === 'used' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'"
                   class="text-xs font-medium px-2 py-0.5 rounded-full">
-                  {{ r.status === 'active' ? '有效' : '已撤銷' }}
+                  {{ r.status === 'active' ? '待核銷' : r.status === 'used' ? '已核銷' : '已撤銷' }}
                 </span>
               </td>
               <td class="px-5 py-4 text-right">

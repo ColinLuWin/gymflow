@@ -74,8 +74,9 @@ export interface Redemption {
   rewardId: string
   rewardName: string
   pointsCost: number
-  status: 'active' | 'cancelled'
+  status: 'active' | 'used' | 'cancelled'
   redeemedAt: string
+  usedAt?: string
 }
 
 export const api = {

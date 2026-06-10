@@ -46,42 +46,80 @@
         <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">我的兌換記錄</p>
         <div v-for="r in redemptions" :key="r.redemptionId"
           class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-          <div>
+          <div class="flex-1 min-w-0 mr-3">
             <p class="text-sm text-gray-800">{{ r.rewardName }}</p>
             <p class="text-xs text-gray-400 mt-0.5">{{ formatDate(r.redeemedAt) }}</p>
           </div>
-          <div class="text-right">
-            <p class="text-sm font-medium text-gray-700">-{{ r.pointsCost }} 點</p>
-            <span :class="r.status === 'active' ? 'text-green-600' : 'text-gray-400'"
-              class="text-xs">
-              {{ r.status === 'active' ? '有效' : '已撤銷' }}
-            </span>
+          <div class="flex items-center gap-3 shrink-0">
+            <div class="text-right">
+              <p class="text-sm font-medium text-gray-700">-{{ r.pointsCost }} 點</p>
+              <span :class="statusClass(r.status)" class="text-xs">{{ statusLabel(r.status) }}</span>
+            </div>
+            <button v-if="r.status === 'active'"
+              @click="showQr(r)"
+              class="text-xs font-medium bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap">
+              出示 QR
+            </button>
           </div>
         </div>
       </div>
     </template>
+
+    <!-- QR Code Modal -->
+    <Teleport to="body">
+      <div v-if="qrModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+        @click.self="qrModal = null">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-xs flex flex-col items-center shadow-xl">
+          <p class="text-base font-semibold text-gray-900 mb-1 text-center">{{ qrModal.rewardName }}</p>
+          <p class="text-xs text-gray-400 mb-5 text-center">出示給工作人員掃描核銷</p>
+
+          <div class="p-3 bg-white border-2 border-gray-200 rounded-xl">
+            <img v-if="qrModal.dataUrl" :src="qrModal.dataUrl" alt="兌換 QR Code" class="w-52 h-52" />
+            <div v-else class="w-52 h-52 flex items-center justify-center">
+              <span class="text-xs text-gray-400">產生中…</span>
+            </div>
+          </div>
+
+          <p class="text-xs text-gray-400 mt-4 text-center">核銷後此 QR 即失效</p>
+
+          <button @click="qrModal = null"
+            class="mt-5 w-full text-sm font-medium bg-gray-100 text-gray-700 py-2.5 rounded-lg hover:bg-gray-200 transition-colors">
+            關閉
+          </button>
+        </div>
+      </div>
+    </Teleport>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import QRCode from 'qrcode'
 import AppLayout from '@/components/AppLayout.vue'
 import { api, type Reward, type Redemption } from '@/lib/api'
 
 const loading = ref(true)
 const balance = ref(0)
+const memberId = ref('')
 const rewards = ref<Reward[]>([])
 const redemptions = ref<Redemption[]>([])
 const redeeming = ref<string | null>(null)
 const successMsg = ref('')
 const errorMsg = ref('')
+const qrModal = ref<{ rewardName: string; dataUrl: string } | null>(null)
 
 onMounted(async () => {
   try {
-    const [pts, rw, rd] = await Promise.all([api.getPoints(), api.getRewards(), api.getRedemptions()])
+    const [pts, rw, rd, qr] = await Promise.all([
+      api.getPoints(),
+      api.getRewards(),
+      api.getRedemptions(),
+      api.getQr(),
+    ])
     balance.value = pts.balance
     rewards.value = rw.rewards.sort((a, b) => a.pointsCost - b.pointsCost)
     redemptions.value = rd.redemptions
+    memberId.value = qr.memberId
   } finally {
     loading.value = false
   }
@@ -96,8 +134,8 @@ async function redeem(reward: Reward) {
     await api.redeem(reward.id)
     balance.value -= reward.pointsCost
     if (reward.stock !== -1) reward.stock -= 1
-    successMsg.value = `成功兌換「${reward.name}」！請截圖此畫面向場館工作人員核銷。`
-    const [rd] = await Promise.all([api.getRedemptions()])
+    successMsg.value = `成功兌換「${reward.name}」！請點選兌換記錄旁的「出示 QR」向工作人員核銷。`
+    const rd = await api.getRedemptions()
     redemptions.value = rd.redemptions
     setTimeout(() => { successMsg.value = '' }, 8000)
   } catch (e) {
@@ -106,6 +144,24 @@ async function redeem(reward: Reward) {
   } finally {
     redeeming.value = null
   }
+}
+
+async function showQr(r: Redemption) {
+  qrModal.value = { rewardName: r.rewardName, dataUrl: '' }
+  const content = `redemption:${memberId.value}:${r.redemptionId}`
+  qrModal.value.dataUrl = await QRCode.toDataURL(content, { width: 208, margin: 1 })
+}
+
+function statusLabel(status: Redemption['status']) {
+  if (status === 'active') return '待核銷'
+  if (status === 'used') return '已核銷'
+  return '已撤銷'
+}
+
+function statusClass(status: Redemption['status']) {
+  if (status === 'active') return 'text-green-600'
+  if (status === 'used') return 'text-blue-500'
+  return 'text-gray-400'
 }
 
 function formatDate(iso: string) {

@@ -50,8 +50,9 @@ export interface Redemption {
   rewardId: string
   rewardName: string
   pointsCost: number
-  status: 'active' | 'cancelled'
+  status: 'active' | 'used' | 'cancelled'
   redeemedAt: string
+  usedAt?: string
 }
 
 export interface Member {
@@ -120,8 +121,16 @@ export const api = {
 
   listRedemptions: () => request<{ redemptions: Redemption[] }>('/admin/redemptions'),
 
+  getRedemption: (memberId: string, redemptionId: string) =>
+    request<Redemption>(`/admin/members/${memberId}/redemptions/${redemptionId}`),
+
   cancelRedemption: (memberId: string, redemptionId: string) =>
     request<{ message: string }>(`/admin/members/${memberId}/redemptions/${redemptionId}/cancel`, {
+      method: 'POST',
+    }),
+
+  useRedemption: (memberId: string, redemptionId: string) =>
+    request<{ message: string }>(`/admin/members/${memberId}/redemptions/${redemptionId}/use`, {
       method: 'POST',
     }),
 }

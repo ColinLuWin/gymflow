@@ -1,14 +1,55 @@
 <template>
   <AppLayout>
     <div class="mb-6">
-      <h2 class="text-xl font-bold text-gray-900">掃描會員 QR</h2>
-      <p class="text-sm text-gray-500 mt-1">對準會員 App「我的點數」頁面的 QR Code</p>
+      <h2 class="text-xl font-bold text-gray-900">掃描 QR Code</h2>
+      <p class="text-sm text-gray-500 mt-1">掃描會員點數 QR 或兌換獎勵 QR</p>
+    </div>
+
+    <!-- Redemption confirm panel -->
+    <div v-if="redemptionScan" class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+      <div class="flex items-start justify-between mb-4">
+        <p class="text-sm font-medium text-gray-500 uppercase tracking-wide">核銷確認</p>
+        <button @click="resetScan" class="text-xs text-gray-400 hover:text-gray-600">重新掃描</button>
+      </div>
+
+      <div v-if="redemptionLoading" class="text-sm text-gray-400">查詢中…</div>
+      <div v-else-if="redemptionError" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{{ redemptionError }}</div>
+      <template v-else-if="redemptionDetail">
+        <div class="space-y-2 mb-5">
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">商品</span>
+            <span class="font-semibold text-gray-900">{{ redemptionDetail.rewardName }}</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">點數</span>
+            <span class="text-gray-700">{{ redemptionDetail.pointsCost }} 點</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">兌換時間</span>
+            <span class="text-gray-700">{{ formatDate(redemptionDetail.redeemedAt) }}</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">狀態</span>
+            <span :class="redemptionDetail.status === 'active' ? 'text-green-600 font-medium' : 'text-gray-400'">
+              {{ redemptionDetail.status === 'active' ? '待核銷' : redemptionDetail.status === 'used' ? '已核銷' : '已撤銷' }}
+            </span>
+          </div>
+        </div>
+
+        <p v-if="useMsg" class="mb-3 text-sm bg-green-50 text-green-700 px-3 py-2 rounded-lg">{{ useMsg }}</p>
+
+        <button v-if="redemptionDetail.status === 'active'"
+          @click="markUsed" :disabled="using"
+          class="w-full bg-indigo-600 text-white text-sm font-medium py-3 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+          {{ using ? '核銷中…' : '確認核銷' }}
+        </button>
+        <div v-else class="text-center text-sm text-gray-400 py-2">此兌換已無法核銷</div>
+      </template>
     </div>
 
     <div class="flex flex-col items-center">
-      <div class="relative w-full max-w-sm rounded-2xl overflow-hidden bg-black aspect-square">
+      <div v-if="!redemptionScan" class="relative w-full max-w-sm rounded-2xl overflow-hidden bg-black aspect-square">
         <video ref="videoEl" class="w-full h-full object-cover" playsinline muted />
-        <!-- 對焦框 -->
         <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div class="w-52 h-52 border-2 border-white/70 rounded-xl"></div>
         </div>
@@ -23,14 +64,14 @@
         {{ cameraError }}
       </p>
 
-      <p v-if="scanning" class="mt-4 text-sm text-gray-400">掃描中，請將 QR Code 對準框內…</p>
+      <p v-if="scanning && !redemptionScan" class="mt-4 text-sm text-gray-400">掃描中，請將 QR Code 對準框內…</p>
 
       <div class="mt-6 w-full max-w-sm">
-        <p class="text-xs text-gray-400 text-center mb-2">或直接輸入會員 ID</p>
+        <p class="text-xs text-gray-400 text-center mb-2">或直接輸入會員 ID / 兌換代碼</p>
         <div class="flex gap-2">
-          <input v-model="manualId" type="text" placeholder="貼上會員 ID…"
+          <input v-model="manualId" type="text" placeholder="貼上 ID…"
             class="flex-1 rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-          <button @click="goToMember(manualId)" :disabled="!manualId"
+          <button @click="handleQrData(manualId.trim())" :disabled="!manualId"
             class="bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors font-medium">
             前往
           </button>
@@ -45,6 +86,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import jsQR from 'jsqr'
 import AppLayout from '@/components/AppLayout.vue'
+import { api, type Redemption } from '@/lib/api'
 
 const router = useRouter()
 const videoEl = ref<HTMLVideoElement>()
@@ -53,14 +95,19 @@ const scanning = ref(false)
 const cameraError = ref('')
 const manualId = ref('')
 
+const redemptionScan = ref<{ memberId: string; redemptionId: string } | null>(null)
+const redemptionDetail = ref<Redemption | null>(null)
+const redemptionLoading = ref(false)
+const redemptionError = ref('')
+const using = ref(false)
+const useMsg = ref('')
+
 let stream: MediaStream | null = null
 let rafId = 0
 
 onMounted(async () => {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' },
-    })
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
     videoEl.value!.srcObject = stream
     await videoEl.value!.play()
     scanning.value = true
@@ -90,14 +137,85 @@ function tick() {
   const code = jsQR(imageData.data, c.width, c.height)
   if (code?.data) {
     stream?.getTracks().forEach((t) => t.stop())
-    goToMember(code.data)
+    cancelAnimationFrame(rafId)
+    scanning.value = false
+    handleQrData(code.data)
     return
   }
   rafId = requestAnimationFrame(tick)
 }
 
-function goToMember(id: string) {
-  if (!id.trim()) return
-  router.push(`/members/${id.trim()}`)
+async function handleQrData(data: string) {
+  if (!data) return
+
+  if (data.startsWith('redemption:')) {
+    const parts = data.split(':')
+    // format: redemption:{memberId}:{redemptionId}
+    // redemptionId itself contains dashes but not colons, so parts[1]=memberId, parts[2]=redemptionId
+    const memberId = parts[1]
+    const redemptionId = parts[2]
+    if (!memberId || !redemptionId) {
+      cameraError.value = '無效的兌換 QR Code'
+      return
+    }
+    redemptionScan.value = { memberId, redemptionId }
+    redemptionLoading.value = true
+    redemptionError.value = ''
+    try {
+      const res = await api.getRedemption(memberId, redemptionId)
+      redemptionDetail.value = res
+    } catch (e) {
+      redemptionError.value = e instanceof Error ? e.message : '查詢失敗'
+    } finally {
+      redemptionLoading.value = false
+    }
+    return
+  }
+
+  router.push(`/members/${data.trim()}`)
+}
+
+async function markUsed() {
+  if (!redemptionScan.value || !redemptionDetail.value) return
+  using.value = true
+  try {
+    await api.useRedemption(redemptionScan.value.memberId, redemptionScan.value.redemptionId)
+    redemptionDetail.value.status = 'used'
+    useMsg.value = '核銷成功！'
+  } catch (e) {
+    redemptionError.value = e instanceof Error ? e.message : '核銷失敗'
+  } finally {
+    using.value = false
+  }
+}
+
+function resetScan() {
+  redemptionScan.value = null
+  redemptionDetail.value = null
+  redemptionError.value = ''
+  useMsg.value = ''
+  scanning.value = false
+  cameraError.value = ''
+  manualId.value = ''
+  // restart camera
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then((s) => {
+    stream = s
+    if (videoEl.value) {
+      videoEl.value.srcObject = s
+      videoEl.value.play().then(() => {
+        scanning.value = true
+        tick()
+      })
+    }
+  }).catch(() => {
+    cameraError.value = '無法開啟相機，請改用手動輸入。'
+  })
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleString('zh-TW', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  })
 }
 </script>

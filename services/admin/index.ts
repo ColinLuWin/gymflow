@@ -385,6 +385,37 @@ async function listAllRedemptions(): Promise<APIGatewayProxyResultV2> {
   return ok({ redemptions: items });
 }
 
+async function getRedemption(memberId: string, redemptionId: string): Promise<APIGatewayProxyResultV2> {
+  const sk = `REDEMPTION#${redemptionId}`;
+  const result = await dynamo.send(
+    new GetCommand({ TableName: TABLE_NAME, Key: { PK: `MEMBER#${memberId}`, SK: sk } })
+  );
+  if (!result.Item) return err('Redemption not found', 404);
+  return ok(result.Item);
+}
+
+async function useRedemption(memberId: string, redemptionId: string): Promise<APIGatewayProxyResultV2> {
+  const sk = `REDEMPTION#${redemptionId}`;
+  const result = await dynamo.send(
+    new GetCommand({ TableName: TABLE_NAME, Key: { PK: `MEMBER#${memberId}`, SK: sk } })
+  );
+  if (!result.Item) return err('Redemption not found', 404);
+  if (result.Item.status !== 'active') return err('Redemption is not active', 400);
+
+  const now = new Date().toISOString();
+  await dynamo.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `MEMBER#${memberId}`, SK: sk },
+      UpdateExpression: 'SET #status = :used, usedAt = :now, updatedAt = :now',
+      ConditionExpression: '#status = :active',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: { ':used': 'used', ':active': 'active', ':now': now },
+    })
+  );
+  return ok({ message: 'Redemption marked as used' });
+}
+
 async function cancelRedemption(memberId: string, redemptionId: string): Promise<APIGatewayProxyResultV2> {
   // redemptionId = "<epochMs>-<uuid>", SK = "REDEMPTION#<epochMs>-<uuid>"
   const sk = `REDEMPTION#${redemptionId}`;
@@ -483,6 +514,22 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       const rewardId = rewardMatch[1];
       if (method === 'PUT') return await updateReward(rewardId, event);
       if (method === 'DELETE') return await deleteReward(rewardId);
+    }
+
+    // GET /admin/members/:id/redemptions/:redemptionId
+    const redemptionGetMatch = path.match(/^\/admin\/members\/([^/]+)\/redemptions\/([^/]+)$/);
+    if (redemptionGetMatch) {
+      if (!callerIsAdmin) return err('Forbidden', 403);
+      const [, memberId, redemptionId] = redemptionGetMatch;
+      if (method === 'GET') return await getRedemption(memberId, redemptionId);
+    }
+
+    // POST /admin/members/:id/redemptions/:redemptionId/use
+    const useMatch = path.match(/^\/admin\/members\/([^/]+)\/redemptions\/([^/]+)\/use$/);
+    if (useMatch) {
+      if (!callerIsAdmin) return err('Forbidden', 403);
+      const [, memberId, redemptionId] = useMatch;
+      if (method === 'POST') return await useRedemption(memberId, redemptionId);
     }
 
     // POST /admin/members/:id/redemptions/:redemptionId/cancel
