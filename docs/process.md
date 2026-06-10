@@ -156,7 +156,7 @@ Browser
 - `MEMBER#<id>` / `POINTS_BALANCE` — 點數餘額（原子更新）
 - `MEMBER#<id>` / `POINTS_TXN#<isoTimestamp>` — 點數異動記錄（award / redeem / refund）
 - `REWARD#<id>` / `META` — 獎勵商品（name、pointsCost、stock、isActive）
-- `MEMBER#<id>` / `REDEMPTION#<epochMs>-<uuid>` — 兌換記錄（URL-safe ID，可排序）
+- `MEMBER#<id>` / `REDEMPTION#<epochMs>-<uuid>` — 兌換記錄（status: active / used / cancelled；usedAt 核銷時間）
 
 **Admin / Trainer 端（JWT 保護）**
 - [x] `POST /admin/members/:id/points` — 發點數（admin + trainer 皆可）
@@ -166,6 +166,8 @@ Browser
 - [x] `PUT /admin/rewards/:id` — 更新獎勵商品
 - [x] `DELETE /admin/rewards/:id` — 刪除獎勵商品
 - [x] `GET /admin/redemptions` — 所有兌換記錄
+- [x] `GET /admin/members/:id/redemptions/:rid` — 查詢單筆兌換（Phase 3.7 新增）
+- [x] `POST /admin/members/:id/redemptions/:rid/use` — 核銷兌換（Phase 3.7 新增）
 - [x] `POST /admin/members/:id/redemptions/:redemptionId/cancel` — 撤銷兌換（補回點數）
 
 **會員端（JWT 保護）**
@@ -249,6 +251,30 @@ VITE_COGNITO_CLIENT_ID=2dv70m8clceqk70ak01jf0ckk8
 - Google 聯合登入用戶的 Cognito username 格式為 `Google_<googleId>`
 - PKCE verifier 存於 `sessionStorage`，關閉頁面後失效；LINE CSRF state 同樣存於 `sessionStorage`
 
+### Phase 3.7 — 兌換核銷 QR Code ✅
+
+**後端 admin service 新增**
+- [x] `GET /admin/members/:id/redemptions/:rid` — 查詢單筆兌換（掃描後顯示詳情用）
+- [x] `POST /admin/members/:id/redemptions/:rid/use` — 核銷兌換（status: `active` → `used`，不退點）
+
+**Member Portal**
+- [x] `RewardsView.vue`：兌換記錄中「待核銷」項目新增「出示 QR」按鈕
+- [x] 點擊後彈出 modal，顯示大型 QR Code，內容格式：`redemption:{memberId}:{redemptionId}`
+- [x] 狀態顯示：待核銷（綠）/ 已核銷（藍）/ 已撤銷（灰）
+
+**Admin Portal**
+- [x] `ScanView.vue`：自動辨識 QR 格式
+  - 普通 ID → 跳至會員頁（原有行為）
+  - `redemption:` 開頭 → 顯示商品名稱、點數、兌換時間、狀態；按「確認核銷」送出
+- [x] `RedemptionsView.vue`：新增「已核銷」藍色標籤，「有效」改為「待核銷」
+
+**DynamoDB 欄位新增**
+- `REDEMPTION#*` item 新增 `usedAt`（核銷時間）、`status` 新增 `used` 值
+
+**CI/CD 修正**
+- [x] GitHub Actions workflow 補上 `VITE_COGNITO_DOMAIN`、`VITE_MEMBER_COGNITO_CLIENT_ID`、`VITE_ADMIN_COGNITO_CLIENT_ID`、`VITE_LINE_CLIENT_ID` 環境變數（原本只有 `VITE_API_URL`，導致 build 出來的 JS 所有 Cognito 值為 undefined）
+- [x] 對應 GitHub Secrets 已設定：`VITE_COGNITO_DOMAIN`、`VITE_MEMBER_COGNITO_CLIENT_ID`、`VITE_ADMIN_COGNITO_CLIENT_ID`、`VITE_LINE_CLIENT_ID`
+
 ### Phase 4 — Core Features ⬜
 **課程與預約**
 - [ ] `POST /classes` — 建立課程
@@ -324,3 +350,5 @@ gymflow/
 | 2026-06-10 | Fix | LINE Channel ID 誤用 user ID，修正 .env / Secrets Manager / Cognito IdP / Lambda 環境變數 |
 | 2026-06-10 | Fix | auth Lambda timeout 3s 不足，調整為 15s；新增 already-linked 例外處理 |
 | 2026-06-10 | Fix | admin 用 Google 登入後需手動加入 Cognito admin group |
+| 2026-06-10 | Fix | GitHub Actions build 補上 Cognito / LINE env vars（原本只傳 VITE_API_URL） |
+| 2026-06-10 | Feat | Phase 3.7：兌換核銷 QR Code（會員出示 QR、管理端掃描核銷） |

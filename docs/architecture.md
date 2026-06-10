@@ -1,6 +1,6 @@
 # Gymflow — 系統架構文件
 
-> 最後更新：2026-06-10（Phase 3.6 完成）
+> 最後更新：2026-06-10（Phase 3.7 完成）
 
 ---
 
@@ -19,8 +19,9 @@ Gymflow 是一套健身房會員管理系統，採用 **AWS 全無伺服器（Se
 | 個人資料查詢與更新 | ✅ |
 | 點數發放、查詢、兌換、撤銷 | ✅ |
 | 獎勵商品管理（建立 / 上下架 / 刪除） | ✅ |
+| 兌換 QR Code 出示與核銷 | ✅ |
 | 管理員建立 / 編輯 / 停權 / 刪除會員 | ✅ |
-| QR Code 掃描跳轉 | ✅ |
+| QR Code 掃描跳轉（會員點數 QR + 兌換核銷 QR） | ✅ |
 | 課程預約 / 報到 / 到期通知 | 🔲 Phase 4–5 |
 
 ---
@@ -183,7 +184,7 @@ function isAdmin(event): boolean {
 | `MEMBER#<sub>` | `CHECKIN#<isoTimestamp>` | 報到記錄 | 時間戳 |
 | `MEMBER#<sub>` | `POINTS_BALANCE` | 點數餘額 | balance（原子更新） |
 | `MEMBER#<sub>` | `POINTS_TXN#<isoTimestamp>` | 點數異動 | type: award/redeem/refund, delta |
-| `MEMBER#<sub>` | `REDEMPTION#<epochMs>-<uuid>` | 兌換記錄 | rewardId, pointsCost, status |
+| `MEMBER#<sub>` | `REDEMPTION#<epochMs>-<uuid>` | 兌換記錄 | rewardId, pointsCost, status（active/used/cancelled）, usedAt |
 | `REWARD#<id>` | `META` | 獎勵商品 | name, pointsCost, stock, isActive |
 
 ### GSI
@@ -304,6 +305,8 @@ Token Refresh：
 | PUT | `/admin/rewards/:id` | 更新獎勵 | admin |
 | DELETE | `/admin/rewards/:id` | 刪除獎勵 | admin |
 | GET | `/admin/redemptions` | 所有兌換記錄 | admin |
+| GET | `/admin/members/:id/redemptions/:rid` | 查詢單筆兌換 | admin |
+| POST | `/admin/members/:id/redemptions/:rid/use` | 核銷兌換（QR 掃描確認） | admin |
 | POST | `/admin/members/:id/redemptions/:rid/cancel` | 撤銷兌換（補點） | admin |
 
 ---
