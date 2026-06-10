@@ -1,130 +1,140 @@
 <template>
   <AppLayout>
-    <div class="mb-6">
-      <RouterLink to="/members" class="text-sm text-gray-500 hover:text-gray-700">← 返回列表</RouterLink>
+    <div class="mb-5">
+      <RouterLink to="/members" class="text-sm font-semibold text-indigo-500 hover:text-indigo-700">← 返回列表</RouterLink>
     </div>
 
     <div v-if="loading" class="text-center py-16 text-gray-400">載入中…</div>
 
     <template v-else-if="member">
+      <!-- Header -->
       <div class="flex items-start justify-between mb-6">
         <div>
-          <h2 class="text-xl font-bold text-gray-900">{{ member.name }}</h2>
-          <p class="text-sm text-gray-500 mt-1">{{ member.email }}</p>
+          <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">會員詳情</p>
+          <h1 class="text-3xl font-black tracking-tight text-gray-900">{{ member.name }}</h1>
+          <p class="text-gray-400 text-sm mt-1">{{ member.email }}</p>
         </div>
         <div class="flex gap-2">
-          <button v-if="member.status === 'active'" @click="suspend" :disabled="acting"
-            class="text-sm bg-red-50 text-red-700 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors font-medium">
-            停權
+          <button v-if="member.status === 'active'" @click="suspend" :disabled="acting" class="btn-danger">
+            {{ acting ? '處理中…' : '停權' }}
           </button>
           <button v-else @click="activate" :disabled="acting"
-            class="text-sm bg-green-50 text-green-700 border border-green-200 px-4 py-2 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors font-medium">
-            復權
+            class="btn-secondary !text-emerald-700 !border-emerald-200 hover:!bg-emerald-50">
+            {{ acting ? '處理中…' : '復權' }}
           </button>
         </div>
       </div>
 
-      <p v-if="actionMsg" class="mb-4 text-sm bg-blue-50 text-blue-700 px-3 py-2 rounded-lg">{{ actionMsg }}</p>
+      <div v-if="actionMsg" class="mb-5 text-sm text-indigo-700 bg-indigo-50 border border-indigo-100 px-4 py-3 rounded-xl">
+        {{ actionMsg }}
+      </div>
 
-      <div class="grid gap-4 sm:grid-cols-2 mb-6">
-        <div class="bg-white rounded-xl border border-gray-200 p-5">
-          <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">基本資料</p>
-          <dl class="space-y-2 text-sm">
-            <div class="flex justify-between">
-              <dt class="text-gray-500">狀態</dt>
+      <div class="grid gap-5 lg:grid-cols-2 mb-5">
+        <!-- 基本資料 -->
+        <div class="card p-6">
+          <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">基本資料</p>
+          <dl class="space-y-3">
+            <div class="flex justify-between items-center">
+              <dt class="text-sm text-gray-500">狀態</dt>
               <dd>
-                <span :class="member.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
-                  class="text-xs font-medium px-2 py-0.5 rounded-full">
+                <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
+                  :class="member.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'">
+                  <span class="w-1.5 h-1.5 rounded-full"
+                    :class="member.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'"></span>
                   {{ member.status === 'active' ? '正常' : '停權' }}
                 </span>
               </dd>
             </div>
-            <div class="flex justify-between">
+            <div class="flex justify-between text-sm">
               <dt class="text-gray-500">電話</dt>
-              <dd class="text-gray-900">{{ member.phone ?? '—' }}</dd>
+              <dd class="text-gray-800 font-medium">{{ member.phone ?? '—' }}</dd>
             </div>
-            <div class="flex justify-between">
+            <div class="flex justify-between text-sm">
               <dt class="text-gray-500">建立日期</dt>
-              <dd class="text-gray-900">{{ formatDate(member.createdAt) }}</dd>
+              <dd class="text-gray-800 font-medium">{{ formatDate(member.createdAt) }}</dd>
             </div>
           </dl>
         </div>
+
+        <!-- 點數卡 -->
+        <div class="rounded-2xl p-6 relative overflow-hidden"
+          style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #2563eb 100%); box-shadow: 0 8px 32px rgba(79,70,229,0.35);">
+          <div class="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none"
+            style="background: rgba(255,255,255,0.07);"></div>
+          <p class="text-xs font-bold uppercase tracking-widest text-white/50 mb-2 relative">累積點數</p>
+          <div class="flex items-baseline gap-2 relative">
+            <span class="text-6xl font-black text-white leading-none tracking-tight">{{ pointsBalance }}</span>
+            <span class="text-xl font-bold text-white/40">pts</span>
+          </div>
+          <p class="text-xs text-white/40 mt-3 relative font-medium">{{ member.name }}</p>
+        </div>
       </div>
 
-      <!-- Edit form -->
-      <div class="bg-white rounded-xl border border-gray-200 p-6 max-w-lg">
-        <p class="text-sm font-medium text-gray-700 mb-4">編輯資料</p>
+      <!-- 編輯資料 -->
+      <div class="card p-6 max-w-lg mb-5">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">編輯資料</p>
         <form @submit.prevent="save" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
-            <input v-model="form.name" type="text" required
-              class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
+            <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">姓名</label>
+            <input v-model="form.name" type="text" required class="field-input" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">電話（選填）</label>
-            <input v-model="form.phone" type="tel"
-              class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
+            <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">電話（選填）</label>
+            <input v-model="form.phone" type="tel" class="field-input" />
           </div>
-
-          <p v-if="saveError" class="text-red-600 text-sm bg-red-50 px-3 py-2 rounded-lg">{{ saveError }}</p>
-          <p v-if="saved" class="text-green-600 text-sm bg-green-50 px-3 py-2 rounded-lg">✓ 已儲存</p>
-
-          <button type="submit" :disabled="saving"
-            class="bg-indigo-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors">
-            {{ saving ? '儲存中…' : '儲存' }}
-          </button>
+          <div v-if="saveError" class="text-sm text-red-600 bg-red-50 border border-red-100 px-3 py-2.5 rounded-xl">{{ saveError }}</div>
+          <div v-if="saved" class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-2.5 rounded-xl">✓ 已儲存</div>
+          <button type="submit" :disabled="saving" class="btn-primary">{{ saving ? '儲存中…' : '儲存' }}</button>
         </form>
       </div>
 
-      <!-- Points section -->
-      <div class="mt-6 bg-white rounded-xl border border-gray-200 p-6">
-        <div class="flex items-center justify-between mb-4">
-          <p class="text-sm font-medium text-gray-700">點數管理</p>
-          <span class="text-2xl font-bold text-indigo-600">{{ pointsBalance }} 點</span>
-        </div>
-
+      <!-- 點數管理 -->
+      <div class="card p-6 mb-5">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">發送點數</p>
         <form @submit.prevent="awardPts" class="flex gap-3 items-end mb-5">
+          <div class="w-32">
+            <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">點數</label>
+            <input v-model.number="awardForm.points" type="number" min="1" required class="field-input" />
+          </div>
           <div class="flex-1">
-            <label class="block text-xs font-medium text-gray-500 mb-1">發給點數</label>
-            <input v-model.number="awardForm.points" type="number" min="1" required
-              class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
+            <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">備註（選填）</label>
+            <input v-model="awardForm.note" type="text" placeholder="例：深蹲 3 組完成" class="field-input" />
           </div>
-          <div class="flex-[2]">
-            <label class="block text-xs font-medium text-gray-500 mb-1">備註（選填）</label>
-            <input v-model="awardForm.note" type="text" placeholder="例：深蹲 3 組完成"
-              class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
-          </div>
-          <button type="submit" :disabled="awarding"
-            class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap">
+          <button type="submit" :disabled="awarding" class="btn-primary whitespace-nowrap">
             {{ awarding ? '發送中…' : '發點數' }}
           </button>
         </form>
 
-        <p v-if="awardMsg" class="mb-3 text-sm bg-green-50 text-green-700 px-3 py-2 rounded-lg">{{ awardMsg }}</p>
+        <div v-if="awardMsg" class="mb-4 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-2.5 rounded-xl">{{ awardMsg }}</div>
 
-        <div v-if="pointsTxns.length">
-          <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">最近異動</p>
-          <div v-for="t in pointsTxns" :key="t.SK"
-            class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-            <div>
-              <p class="text-sm text-gray-700">{{ t.note ?? txnLabel(t.type) }}</p>
-              <p class="text-xs text-gray-400">{{ formatDate(t.createdAt) }}</p>
+        <template v-if="pointsTxns.length">
+          <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">最近異動</p>
+          <div v-for="(t, i) in pointsTxns" :key="t.SK"
+            class="flex items-center justify-between py-3"
+            :class="i < pointsTxns.length - 1 ? 'border-b border-gray-50' : ''">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0"
+                :class="t.delta > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'">
+                {{ t.delta > 0 ? '+' : '−' }}
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-700">{{ t.note ?? txnLabel(t.type) }}</p>
+                <p class="text-xs text-gray-400">{{ formatDate(t.createdAt) }}</p>
+              </div>
             </div>
-            <span :class="t.delta > 0 ? 'text-green-600' : 'text-red-500'"
-              class="text-sm font-semibold">
+            <span class="text-sm font-black" :class="t.delta > 0 ? 'text-emerald-600' : 'text-red-500'">
               {{ t.delta > 0 ? '+' : '' }}{{ t.delta }}
             </span>
           </div>
-        </div>
-        <p v-else class="text-sm text-gray-400">尚無點數記錄</p>
+        </template>
+        <p v-else class="text-sm text-gray-300">尚無點數記錄</p>
       </div>
 
       <!-- Danger zone -->
-      <div class="mt-6 max-w-lg border border-red-200 rounded-xl p-5">
-        <p class="text-sm font-medium text-red-700 mb-1">危險操作</p>
+      <div class="max-w-lg rounded-2xl p-5 border border-red-100 bg-red-50/50">
+        <p class="text-sm font-bold text-red-700 mb-1">危險操作</p>
         <p class="text-xs text-gray-500 mb-4">刪除後無法復原，Cognito 帳號與所有資料將一併移除。</p>
-        <button @click="remove" :disabled="acting"
-          class="text-sm bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors font-medium">
+        <button @click="remove" :disabled="acting" class="btn-danger">
           {{ acting ? '刪除中…' : '刪除會員' }}
         </button>
       </div>
@@ -145,7 +155,6 @@ const id = route.params.id as string
 const loading = ref(true)
 const member = ref<Member | null>(null)
 const form = ref({ name: '', phone: '' })
-
 const acting = ref(false)
 const actionMsg = ref('')
 const saving = ref(false)
@@ -172,11 +181,8 @@ async function suspend() {
   try {
     await api.suspendMember(id)
     member.value!.status = 'suspended'
-    actionMsg.value = '已停權'
-    setTimeout(() => { actionMsg.value = '' }, 3000)
-  } finally {
-    acting.value = false
-  }
+    flash('已停權')
+  } finally { acting.value = false }
 }
 
 async function activate() {
@@ -184,11 +190,8 @@ async function activate() {
   try {
     await api.activateMember(id)
     member.value!.status = 'active'
-    actionMsg.value = '已復權'
-    setTimeout(() => { actionMsg.value = '' }, 3000)
-  } finally {
-    acting.value = false
-  }
+    flash('已復權')
+  } finally { acting.value = false }
 }
 
 async function remove() {
@@ -197,9 +200,7 @@ async function remove() {
   try {
     await api.deleteMember(id)
     router.push('/members')
-  } finally {
-    acting.value = false
-  }
+  } finally { acting.value = false }
 }
 
 async function save() {
@@ -216,9 +217,7 @@ async function save() {
     setTimeout(() => { saved.value = false }, 3000)
   } catch (e) {
     saveError.value = e instanceof Error ? e.message : '儲存失敗'
-  } finally {
-    saving.value = false
-  }
+  } finally { saving.value = false }
 }
 
 async function awardPts() {
@@ -232,9 +231,12 @@ async function awardPts() {
     awardMsg.value = `已發送 ${awardForm.value.points} 點`
     awardForm.value.note = ''
     setTimeout(() => { awardMsg.value = '' }, 3000)
-  } finally {
-    awarding.value = false
-  }
+  } finally { awarding.value = false }
+}
+
+function flash(msg: string) {
+  actionMsg.value = msg
+  setTimeout(() => { actionMsg.value = '' }, 3000)
 }
 
 function txnLabel(type: string) {

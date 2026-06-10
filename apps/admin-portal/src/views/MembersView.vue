@@ -1,56 +1,59 @@
 <template>
   <AppLayout>
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-xl font-bold text-gray-900">會員管理</h2>
-      <RouterLink to="/members/new"
-        class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
-        + 新增會員
-      </RouterLink>
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">管理</p>
+        <h1 class="text-3xl font-black tracking-tight text-gray-900">會員管理</h1>
+      </div>
+      <RouterLink to="/members/new" class="btn-primary">+ 新增會員</RouterLink>
     </div>
 
-    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="card overflow-hidden">
       <div v-if="loading" class="text-center py-16 text-gray-400">載入中…</div>
-
-      <div v-else-if="error" class="text-center py-16 text-red-500 text-sm">{{ error }}</div>
+      <div v-else-if="error" class="text-center py-16 text-red-500 text-sm px-6">{{ error }}</div>
 
       <template v-else>
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+        <table class="data-table">
+          <thead>
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">姓名</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Email</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">狀態</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">建立日期</th>
-              <th class="px-6 py-3"></th>
+              <th>姓名</th>
+              <th>Email</th>
+              <th>狀態</th>
+              <th>建立日期</th>
+              <th></th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-100">
+          <tbody>
             <tr v-if="members.length === 0">
-              <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-400">尚無會員資料</td>
+              <td colspan="5" class="text-center py-12 text-gray-300">尚無會員資料</td>
             </tr>
-            <tr v-for="m in members" :key="m.sub" class="hover:bg-gray-50 transition-colors">
-              <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ m.name }}</td>
-              <td class="px-6 py-4 text-sm text-gray-500">{{ m.email }}</td>
-              <td class="px-6 py-4">
-                <span :class="m.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
-                  class="text-xs font-medium px-2.5 py-1 rounded-full">
+            <tr v-for="m in members" :key="m.sub">
+              <td class="font-semibold text-gray-900">{{ m.name }}</td>
+              <td class="text-gray-500">{{ m.email }}</td>
+              <td>
+                <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
+                  :class="m.status === 'active'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-red-50 text-red-600'">
+                  <span class="w-1.5 h-1.5 rounded-full"
+                    :class="m.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'"></span>
                   {{ m.status === 'active' ? '正常' : '停權' }}
                 </span>
               </td>
-              <td class="px-6 py-4 text-sm text-gray-400">{{ formatDate(m.createdAt) }}</td>
-              <td class="px-6 py-4 text-right">
+              <td class="text-gray-400 text-xs">{{ formatDate(m.createdAt) }}</td>
+              <td class="text-right">
                 <RouterLink :to="`/members/${m.sub}`"
-                  class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
-                  查看
+                  class="text-sm font-semibold text-indigo-600 hover:text-indigo-800">
+                  查看 →
                 </RouterLink>
               </td>
             </tr>
           </tbody>
         </table>
 
-        <div v-if="cursor" class="px-6 py-4 border-t border-gray-100 text-center">
+        <div v-if="cursor" class="px-6 py-4 border-t border-gray-50 text-center">
           <button @click="loadMore" :disabled="loadingMore"
-            class="text-sm text-indigo-600 hover:text-indigo-800 font-medium disabled:opacity-50">
+            class="text-sm font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50">
             {{ loadingMore ? '載入中…' : '載入更多' }}
           </button>
         </div>

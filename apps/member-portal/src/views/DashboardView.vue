@@ -3,50 +3,62 @@
     <div v-if="loading" class="text-center py-16 text-gray-400">載入中…</div>
 
     <template v-else>
-      <h2 class="text-xl font-bold text-gray-900 mb-6">會員總覽</h2>
+      <!-- Greeting -->
+      <div class="mb-6 mt-1">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">歡迎回來</p>
+        <h1 class="text-3xl font-black tracking-tight text-gray-900">{{ profile?.name ?? '—' }}</h1>
+      </div>
 
-      <div class="grid gap-4 sm:grid-cols-2 mb-6">
-        <!-- Profile card -->
-        <div class="bg-white rounded-xl border border-gray-200 p-6">
-          <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">歡迎回來</p>
-          <p class="text-2xl font-bold text-gray-900">{{ profile?.name ?? '—' }}</p>
-          <p class="text-sm text-gray-500 mt-1">{{ profile?.email }}</p>
-          <span :class="profile?.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
-            class="inline-block mt-3 text-xs font-medium px-2.5 py-1 rounded-full">
-            {{ profile?.status === 'active' ? '帳號正常' : '帳號停用' }}
-          </span>
+      <!-- Status row -->
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="card p-5">
+          <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">帳號狀態</p>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full"
+              :class="profile?.status === 'active' ? 'bg-emerald-400' : 'bg-red-500'"></span>
+            <span class="text-base font-black text-gray-900">
+              {{ profile?.status === 'active' ? '正常' : '停用' }}
+            </span>
+          </div>
         </div>
 
-        <!-- Membership card -->
-        <div class="bg-white rounded-xl border border-gray-200 p-6">
-          <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">會員方案</p>
+        <div class="card p-5">
+          <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">會員方案</p>
           <template v-if="memberships.length">
-            <div v-for="m in memberships" :key="m.SK" class="flex items-center justify-between mb-2">
-              <span class="text-sm text-gray-700">{{ m.planType ?? '標準方案' }}</span>
-              <div class="text-right">
-                <span :class="m.membershipStatus === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
-                  class="text-xs font-medium px-2 py-0.5 rounded-full">
-                  {{ m.membershipStatus === 'active' ? '有效' : '已到期' }}
-                </span>
-                <p v-if="m.expiryDate" class="text-xs text-gray-400 mt-1">到期 {{ m.expiryDate }}</p>
-              </div>
-            </div>
+            <p class="text-base font-black text-gray-900 leading-tight">
+              {{ memberships[0].planType ?? '標準方案' }}
+            </p>
+            <p v-if="memberships[0].expiryDate" class="text-xs text-gray-400 mt-1">
+              {{ memberships[0].expiryDate }} 到期
+            </p>
           </template>
-          <p v-else class="text-sm text-gray-400">尚無會員方案</p>
+          <p v-else class="text-sm text-gray-300 font-medium">尚無方案</p>
         </div>
       </div>
 
+      <!-- Email subtle -->
+      <p class="text-sm text-gray-400 mb-6 px-1">{{ profile?.email }}</p>
+
       <!-- Checkins -->
-      <div class="bg-white rounded-xl border border-gray-200 p-6">
-        <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">最近報到記錄</p>
+      <div class="card overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50">
+          <p class="text-xs font-bold uppercase tracking-widest text-gray-400">最近報到記錄</p>
+        </div>
         <template v-if="checkins.length">
-          <div v-for="c in checkins" :key="c.SK"
-            class="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
-            <span class="text-sm text-gray-700">{{ formatCheckinDate(c.SK) }}</span>
-            <span class="text-xs text-gray-400">{{ c.locationId ?? '主館' }}</span>
+          <div v-for="(c, i) in checkins" :key="c.SK"
+            class="flex items-center justify-between px-6 py-4"
+            :class="i < checkins.length - 1 ? 'border-b border-gray-50' : ''">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                style="background: linear-gradient(135deg,#eef2ff,#ede9fe);">
+                <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
+              </div>
+              <span class="text-sm font-semibold text-gray-700">{{ formatCheckinDate(c.SK) }}</span>
+            </div>
+            <span class="text-xs font-medium text-gray-400">{{ c.locationId ?? '主館' }}</span>
           </div>
         </template>
-        <p v-else class="text-sm text-gray-400">尚無報到記錄</p>
+        <div v-else class="px-6 py-10 text-center text-sm text-gray-300">尚無報到記錄</div>
       </div>
     </template>
   </AppLayout>
@@ -65,9 +77,7 @@ const checkins = ref<Checkin[]>([])
 onMounted(async () => {
   try {
     const [p, m, c] = await Promise.all([
-      api.getProfile(),
-      api.getMembership(),
-      api.getCheckins(5),
+      api.getProfile(), api.getMembership(), api.getCheckins(5),
     ])
     profile.value = p
     memberships.value = m.memberships
@@ -84,8 +94,6 @@ function formatCheckinDate(sk: string) {
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit',
     })
-  } catch {
-    return ts
-  }
+  } catch { return ts }
 }
 </script>

@@ -3,49 +3,72 @@
     <div v-if="loading" class="text-center py-16 text-gray-400">載入中…</div>
 
     <template v-else>
-      <h2 class="text-xl font-bold text-gray-900 mb-6">我的點數</h2>
+      <!-- Hero member card -->
+      <div class="gradient-hero rounded-3xl p-7 mb-5 relative overflow-hidden"
+        style="box-shadow: 0 12px 48px rgba(79,70,229,0.45), 0 4px 12px rgba(0,0,0,0.12);">
+        <!-- Decorative blur circles -->
+        <div class="absolute -top-16 -right-16 w-56 h-56 rounded-full pointer-events-none"
+          style="background: rgba(255,255,255,0.07);"></div>
+        <div class="absolute -bottom-12 -left-8 w-40 h-40 rounded-full pointer-events-none"
+          style="background: rgba(255,255,255,0.05);"></div>
 
-      <div class="grid gap-4 sm:grid-cols-2 mb-6">
-        <!-- QR Code card -->
-        <div class="bg-white rounded-xl border border-gray-200 p-6 flex flex-col items-center">
-          <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">出示給教練掃描</p>
-          <img v-if="qrDataUrl" :src="qrDataUrl" alt="會員 QR Code"
-            class="w-48 h-48 rounded-lg border border-gray-100" />
-          <div v-else class="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center">
-            <span class="text-xs text-gray-400">產生中…</span>
+        <!-- Card top row -->
+        <div class="relative flex items-start justify-between mb-10">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-white/50 mb-1.5">Gymflow Member</p>
+            <p class="text-2xl font-black text-white tracking-tight">{{ profile?.name ?? '—' }}</p>
           </div>
-          <p class="text-xs text-gray-400 mt-3">{{ memberId }}</p>
+          <!-- QR -->
+          <div class="bg-white rounded-2xl p-2 shrink-0 shadow-lg">
+            <img v-if="qrDataUrl" :src="qrDataUrl" alt="會員 QR Code" class="w-16 h-16 block rounded-lg" />
+            <div v-else class="w-16 h-16 flex items-center justify-center">
+              <span class="text-xs text-gray-300">…</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Balance card -->
-        <div class="bg-white rounded-xl border border-gray-200 p-6 flex flex-col justify-center">
-          <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">目前點數</p>
-          <p class="text-5xl font-bold text-indigo-600">{{ balance }}</p>
-          <p class="text-sm text-gray-400 mt-2">點</p>
-          <RouterLink to="/rewards"
-            class="mt-6 inline-block text-center bg-indigo-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors">
-            前往兌換獎勵
-          </RouterLink>
+        <!-- Points display -->
+        <div class="relative">
+          <p class="text-xs font-bold uppercase tracking-widest text-white/50 mb-2">累積點數</p>
+          <div class="flex items-baseline gap-3">
+            <span class="text-7xl font-black text-white leading-none tracking-tight"
+              style="text-shadow: 0 2px 20px rgba(0,0,0,0.15);">{{ balance }}</span>
+            <span class="text-2xl font-bold text-white/40">pts</span>
+          </div>
         </div>
       </div>
 
+      <!-- CTA -->
+      <RouterLink to="/rewards" class="btn-primary w-full mb-5 text-base py-4 rounded-2xl">
+        前往兌換獎勵
+      </RouterLink>
+
       <!-- Transaction history -->
-      <div class="bg-white rounded-xl border border-gray-200 p-6">
-        <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">點數異動記錄</p>
+      <div class="card overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50">
+          <p class="text-xs font-bold uppercase tracking-widest text-gray-400">點數異動記錄</p>
+        </div>
         <template v-if="transactions.length">
-          <div v-for="txn in transactions" :key="txn.SK"
-            class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-            <div>
-              <p class="text-sm text-gray-800">{{ txnLabel(txn) }}</p>
-              <p class="text-xs text-gray-400 mt-0.5">{{ formatDate(txn.createdAt) }}</p>
+          <div v-for="(txn, i) in transactions" :key="txn.SK"
+            class="flex items-center justify-between px-6 py-4"
+            :class="i < transactions.length - 1 ? 'border-b border-gray-50' : ''">
+            <div class="flex items-center gap-4">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-black"
+                :class="txn.delta > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'">
+                {{ txn.delta > 0 ? '+' : '−' }}
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-gray-800">{{ txnLabel(txn) }}</p>
+                <p class="text-xs text-gray-400 mt-0.5">{{ formatDate(txn.createdAt) }}</p>
+              </div>
             </div>
-            <span :class="txn.delta > 0 ? 'text-green-600' : 'text-red-500'"
-              class="text-sm font-semibold">
+            <span class="text-base font-black"
+              :class="txn.delta > 0 ? 'text-emerald-500' : 'text-red-500'">
               {{ txn.delta > 0 ? '+' : '' }}{{ txn.delta }}
             </span>
           </div>
         </template>
-        <p v-else class="text-sm text-gray-400">尚無異動記錄</p>
+        <div v-else class="px-6 py-10 text-center text-sm text-gray-300">尚無異動記錄</div>
       </div>
     </template>
   </AppLayout>
@@ -55,21 +78,23 @@
 import { ref, onMounted } from 'vue'
 import QRCode from 'qrcode'
 import AppLayout from '@/components/AppLayout.vue'
-import { api, type PointsTxn } from '@/lib/api'
+import { api, type PointsTxn, type Profile } from '@/lib/api'
 
 const loading = ref(true)
 const memberId = ref('')
 const qrDataUrl = ref('')
 const balance = ref(0)
 const transactions = ref<PointsTxn[]>([])
+const profile = ref<Profile | null>(null)
 
 onMounted(async () => {
   try {
-    const [qr, pts] = await Promise.all([api.getQr(), api.getPoints()])
+    const [qr, pts, p] = await Promise.all([api.getQr(), api.getPoints(), api.getProfile()])
     memberId.value = qr.memberId
     balance.value = pts.balance
     transactions.value = pts.transactions
-    qrDataUrl.value = await QRCode.toDataURL(qr.memberId, { width: 256, margin: 2 })
+    profile.value = p
+    qrDataUrl.value = await QRCode.toDataURL(qr.memberId, { width: 128, margin: 1 })
   } finally {
     loading.value = false
   }

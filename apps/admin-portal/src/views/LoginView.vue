@@ -1,17 +1,35 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 w-full max-w-sm p-8">
-      <div class="flex items-center gap-2 mb-1">
-        <h1 class="text-2xl font-bold text-gray-900">Gymflow</h1>
-        <span class="text-xs bg-indigo-100 text-indigo-700 font-medium px-2 py-0.5 rounded-full">管理</span>
-      </div>
-      <p class="text-gray-500 text-sm mb-7">管理者登入</p>
+  <div class="min-h-screen flex">
+    <!-- Left: gradient brand -->
+    <div class="flex-1 flex flex-col justify-between p-16 relative overflow-hidden"
+      style="background: linear-gradient(160deg, #4f46e5 0%, #7c3aed 55%, #2563eb 100%);">
+      <div class="absolute -top-24 -right-24 w-80 h-80 rounded-full pointer-events-none"
+        style="background: rgba(255,255,255,0.06);"></div>
+      <div class="absolute bottom-10 -left-16 w-64 h-64 rounded-full pointer-events-none"
+        style="background: rgba(255,255,255,0.04);"></div>
 
-      <p v-if="errorMsg" class="text-red-600 text-sm bg-red-50 px-3 py-2 rounded-lg mb-4">{{ errorMsg }}</p>
+      <div class="relative">
+        <div class="flex items-center gap-2.5 mb-8">
+          <span class="text-3xl font-black tracking-tight text-white">Gymflow</span>
+          <span class="text-xs font-bold bg-white/20 text-white px-2.5 py-1 rounded-full tracking-wide">管理者入口</span>
+        </div>
+        <h2 class="text-5xl font-black tracking-tight text-white leading-tight mb-4">
+          管理你的<br />健身房會員
+        </h2>
+        <p class="text-white/50 text-base max-w-sm">掃描 QR 發點、管理會員資料、設定兌換獎勵，一站搞定。</p>
+      </div>
+
+      <p class="relative text-white/25 text-xs">© 2025 Gymflow. All rights reserved.</p>
+    </div>
+
+    <!-- Right: login form -->
+    <div class="w-[420px] bg-white flex flex-col justify-center px-14 py-16"
+      style="box-shadow: -8px 0 40px rgba(79,70,229,0.08);">
+      <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-8">管理者登入</p>
 
       <button @click="auth.startLogin()"
-        class="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-        <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        class="w-full flex items-center gap-4 rounded-2xl py-4 px-5 text-sm font-semibold text-gray-800 bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-100">
+        <svg class="w-5 h-5 shrink-0" viewBox="0 0 48 48">
           <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
           <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
           <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
@@ -20,7 +38,11 @@
         使用 Google 登入
       </button>
 
-      <p class="mt-6 text-center text-xs text-gray-400">僅限授權的管理者帳號</p>
+      <p v-if="errorMsg" class="mt-5 text-sm text-red-600 bg-red-50 border border-red-100 px-4 py-3 rounded-2xl">
+        {{ errorMsg }}
+      </p>
+
+      <p class="mt-8 text-xs text-gray-300 text-center">僅限授權的管理者帳號</p>
     </div>
   </div>
 </template>

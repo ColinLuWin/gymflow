@@ -1,3 +1,85 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #eef0f8;
+    min-height: 100vh;
+    color: #111827;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  /* Elevated white card */
+  .card {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow:
+      0 4px 6px rgba(99, 102, 241, 0.04),
+      0 12px 40px rgba(99, 102, 241, 0.10),
+      0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  /* Rich gradient — member card & hero */
+  .gradient-hero {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #2563eb 100%);
+  }
+
+  /* Gradient CTA button */
+  .btn-primary {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.01em;
+    border-radius: 14px;
+    padding: 0.85rem 1.75rem;
+    transition: opacity 0.15s, transform 0.1s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 16px rgba(79,70,229,0.40);
+  }
+
+  .btn-primary:hover:not(:disabled) { opacity: 0.88; }
+  .btn-primary:active:not(:disabled) { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.40; cursor: not-allowed; }
+
+  /* Secondary */
+  .btn-secondary {
+    background: #f1f2f8;
+    color: #374151;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: 14px;
+    padding: 0.75rem 1.5rem;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-secondary:hover:not(:disabled) { background: #e5e7f0; }
+  .btn-secondary:disabled { opacity: 0.40; cursor: not-allowed; }
+
+  /* Input */
+  .field-input {
+    background: #f5f6fb;
+    border: 1.5px solid #e5e7f0;
+    border-radius: 12px;
+    color: #111827;
+    width: 100%;
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+  }
+  .field-input::placeholder { color: #b0b4cc; }
+  .field-input:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(129,140,248,0.18);
+  }
+  .field-input:disabled { opacity: 0.45; cursor: not-allowed; }
+}
