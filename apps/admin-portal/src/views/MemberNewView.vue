@@ -6,7 +6,7 @@
 
     <div class="mb-6">
       <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">管理</p>
-      <h1 class="text-3xl font-black tracking-tight text-gray-900">新增會員</h1>
+      <h1 class="text-2xl md:text-3xl font-black tracking-tight text-gray-900">新增會員</h1>
     </div>
 
     <div class="card p-6 max-w-lg">

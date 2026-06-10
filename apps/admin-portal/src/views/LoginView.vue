@@ -1,8 +1,10 @@
 <template>
-  <div class="min-h-screen flex">
-    <!-- Left: gradient brand -->
-    <div class="flex-1 flex flex-col justify-between p-16 relative overflow-hidden"
-      style="background: linear-gradient(160deg, #4f46e5 0%, #7c3aed 55%, #2563eb 100%);">
+  <!-- Outer wrapper: always gradient on mobile, split on desktop -->
+  <div class="min-h-screen flex flex-col md:flex-row"
+    style="background: linear-gradient(160deg, #4f46e5 0%, #7c3aed 55%, #2563eb 100%);">
+
+    <!-- Left: gradient brand panel (desktop only) -->
+    <div class="hidden md:flex flex-1 flex-col justify-between p-16 relative overflow-hidden">
       <div class="absolute -top-24 -right-24 w-80 h-80 rounded-full pointer-events-none"
         style="background: rgba(255,255,255,0.06);"></div>
       <div class="absolute bottom-10 -left-16 w-64 h-64 rounded-full pointer-events-none"
@@ -22,8 +24,17 @@
       <p class="relative text-white/25 text-xs">© 2025 Gymflow. All rights reserved.</p>
     </div>
 
-    <!-- Right: login form -->
-    <div class="w-[420px] bg-white flex flex-col justify-center px-14 py-16"
+    <!-- Mobile brand area (mobile only, fills remaining space above form card) -->
+    <div class="md:hidden flex flex-col items-center justify-end flex-1 px-6 pt-16 pb-8">
+      <div class="flex items-center gap-2.5 mb-3">
+        <span class="text-3xl font-black tracking-tight text-white">Gymflow</span>
+        <span class="text-xs font-bold bg-white/20 text-white px-2.5 py-1 rounded-full">管理者入口</span>
+      </div>
+      <p class="text-white/50 text-sm text-center">掃描 QR 發點、管理會員資料、設定獎勵</p>
+    </div>
+
+    <!-- Right: form panel -->
+    <div class="w-full md:w-[420px] bg-white rounded-t-3xl md:rounded-none flex flex-col justify-center px-8 md:px-14 py-10 md:py-16"
       style="box-shadow: -8px 0 40px rgba(79,70,229,0.08);">
       <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-8">管理者登入</p>
 

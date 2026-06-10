@@ -2,12 +2,12 @@
   <AppLayout>
     <div class="mb-6">
       <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">管理</p>
-      <h1 class="text-3xl font-black tracking-tight text-gray-900">審核管理</h1>
+      <h1 class="text-2xl md:text-3xl font-black tracking-tight text-gray-900">審核管理</h1>
       <p class="text-gray-400 text-sm mt-1">審核教練 / 員工的後台存取申請</p>
     </div>
 
     <!-- Status filter -->
-    <div class="flex gap-2 mb-5">
+    <div class="flex gap-2 mb-5 flex-wrap">
       <button v-for="f in filters" :key="f.value" @click="activeFilter = f.value"
         class="text-xs font-bold px-3.5 py-1.5 rounded-full transition-colors"
         :class="activeFilter === f.value
@@ -28,51 +28,84 @@
       <div v-if="errorMsg"  class="mb-5 text-sm text-red-600 bg-red-50 border border-red-100 px-4 py-3 rounded-xl">{{ errorMsg }}</div>
 
       <div v-if="filteredApprovals.length" class="card overflow-hidden">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>姓名</th>
-              <th>Email</th>
-              <th>申請時間</th>
-              <th>狀態</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="a in filteredApprovals" :key="a.sub">
-              <td class="font-semibold text-gray-900">{{ a.name }}</td>
-              <td class="text-gray-500 text-xs font-mono">{{ a.email }}</td>
-              <td class="text-gray-400 text-xs">{{ formatDate(a.requestedAt) }}</td>
-              <td>
-                <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
-                  :class="a.status === 'pending'
-                    ? 'bg-amber-50 text-amber-700'
-                    : a.status === 'approved'
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'bg-red-50 text-red-600'">
-                  <span class="w-1.5 h-1.5 rounded-full"
-                    :class="a.status === 'pending' ? 'bg-amber-400' : a.status === 'approved' ? 'bg-emerald-500' : 'bg-red-500'"></span>
-                  {{ a.status === 'pending' ? '待審核' : a.status === 'approved' ? '已核准' : '已拒絕' }}
-                </span>
-              </td>
-              <td class="text-right">
-                <div v-if="a.status === 'pending'" class="flex justify-end gap-2">
-                  <button @click="approve(a)" :disabled="acting === a.sub"
-                    class="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:opacity-40 transition-colors">
-                    核准
-                  </button>
-                  <button @click="reject(a)" :disabled="acting === a.sub"
-                    class="text-xs font-semibold text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors">
-                    拒絕
-                  </button>
-                </div>
-                <span v-else class="text-xs text-gray-300">
-                  {{ a.reviewedAt ? formatDate(a.reviewedAt) : '—' }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <!-- Mobile card list -->
+        <div class="md:hidden divide-y divide-gray-50">
+          <div v-for="a in filteredApprovals" :key="a.sub" class="px-5 py-4">
+            <div class="flex items-start justify-between mb-2">
+              <div class="flex-1 min-w-0 mr-3">
+                <p class="font-semibold text-gray-900 text-sm">{{ a.name }}</p>
+                <p class="text-xs font-mono text-gray-400 mt-0.5 truncate">{{ a.email }}</p>
+              </div>
+              <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
+                :class="a.status === 'pending' ? 'bg-amber-50 text-amber-700' : a.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'">
+                <span class="w-1.5 h-1.5 rounded-full"
+                  :class="a.status === 'pending' ? 'bg-amber-400' : a.status === 'approved' ? 'bg-emerald-500' : 'bg-red-500'"></span>
+                {{ a.status === 'pending' ? '待審核' : a.status === 'approved' ? '已核准' : '已拒絕' }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <p class="text-xs text-gray-400">{{ formatDate(a.requestedAt) }}</p>
+              <div v-if="a.status === 'pending'" class="flex gap-3">
+                <button @click="approve(a)" :disabled="acting === a.sub"
+                  class="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:opacity-40 transition-colors">
+                  核准
+                </button>
+                <button @click="reject(a)" :disabled="acting === a.sub"
+                  class="text-xs font-semibold text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors">
+                  拒絕
+                </button>
+              </div>
+              <span v-else class="text-xs text-gray-300">
+                {{ a.reviewedAt ? formatDate(a.reviewedAt) : '—' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop table -->
+        <div class="hidden md:block overflow-x-auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>姓名</th>
+                <th>Email</th>
+                <th>申請時間</th>
+                <th>狀態</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="a in filteredApprovals" :key="a.sub">
+                <td class="font-semibold text-gray-900">{{ a.name }}</td>
+                <td class="text-gray-500 text-xs font-mono">{{ a.email }}</td>
+                <td class="text-gray-400 text-xs">{{ formatDate(a.requestedAt) }}</td>
+                <td>
+                  <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
+                    :class="a.status === 'pending' ? 'bg-amber-50 text-amber-700' : a.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'">
+                    <span class="w-1.5 h-1.5 rounded-full"
+                      :class="a.status === 'pending' ? 'bg-amber-400' : a.status === 'approved' ? 'bg-emerald-500' : 'bg-red-500'"></span>
+                    {{ a.status === 'pending' ? '待審核' : a.status === 'approved' ? '已核准' : '已拒絕' }}
+                  </span>
+                </td>
+                <td class="text-right">
+                  <div v-if="a.status === 'pending'" class="flex justify-end gap-2">
+                    <button @click="approve(a)" :disabled="acting === a.sub"
+                      class="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:opacity-40 transition-colors">
+                      核准
+                    </button>
+                    <button @click="reject(a)" :disabled="acting === a.sub"
+                      class="text-xs font-semibold text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors">
+                      拒絕
+                    </button>
+                  </div>
+                  <span v-else class="text-xs text-gray-300">
+                    {{ a.reviewedAt ? formatDate(a.reviewedAt) : '—' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div v-else class="text-center py-16 text-gray-300">

@@ -2,12 +2,12 @@
   <AppLayout>
     <div class="mb-6">
       <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">管理</p>
-      <h1 class="text-3xl font-black tracking-tight text-gray-900">掃描 QR Code</h1>
+      <h1 class="text-2xl md:text-3xl font-black tracking-tight text-gray-900">掃描 QR Code</h1>
       <p class="text-gray-400 text-sm mt-1">掃描會員點數 QR 或兌換獎勵 QR</p>
     </div>
 
     <!-- Redemption confirm panel -->
-    <div v-if="redemptionScan" class="card p-6 mb-6 max-w-md">
+    <div v-if="redemptionScan" class="card p-5 md:p-6 mb-6 max-w-md">
       <div class="flex items-start justify-between mb-4">
         <p class="text-xs font-bold uppercase tracking-widest text-gray-400">核銷確認</p>
         <button @click="resetScan" class="text-xs font-semibold text-indigo-500 hover:text-indigo-700">重新掃描</button>

@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between mb-6">
       <div>
         <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">管理</p>
-        <h1 class="text-3xl font-black tracking-tight text-gray-900">獎勵商品</h1>
+        <h1 class="text-2xl md:text-3xl font-black tracking-tight text-gray-900">獎勵商品</h1>
       </div>
       <button @click="showForm = !showForm" class="btn-primary">+ 新增商品</button>
     </div>

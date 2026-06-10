@@ -8,13 +8,13 @@
 
     <template v-else-if="member">
       <!-- Header -->
-      <div class="flex items-start justify-between mb-6">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">會員詳情</p>
-          <h1 class="text-3xl font-black tracking-tight text-gray-900">{{ member.name }}</h1>
+          <h1 class="text-2xl md:text-3xl font-black tracking-tight text-gray-900">{{ member.name }}</h1>
           <p class="text-gray-400 text-sm mt-1">{{ member.email }}</p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 shrink-0">
           <button v-if="member.status === 'active'" @click="suspend" :disabled="acting" class="btn-danger">
             {{ acting ? '處理中…' : '停權' }}
           </button>
@@ -91,8 +91,8 @@
       <!-- 點數管理 -->
       <div class="card p-6 mb-5">
         <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">發送點數</p>
-        <form @submit.prevent="awardPts" class="flex gap-3 items-end mb-5">
-          <div class="w-32">
+        <form @submit.prevent="awardPts" class="flex flex-col sm:flex-row gap-3 sm:items-end mb-5">
+          <div class="w-full sm:w-32">
             <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">點數</label>
             <input v-model.number="awardForm.points" type="number" min="1" required class="field-input" />
           </div>
@@ -100,7 +100,7 @@
             <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">備註（選填）</label>
             <input v-model="awardForm.note" type="text" placeholder="例：深蹲 3 組完成" class="field-input" />
           </div>
-          <button type="submit" :disabled="awarding" class="btn-primary whitespace-nowrap">
+          <button type="submit" :disabled="awarding" class="btn-primary whitespace-nowrap w-full sm:w-auto">
             {{ awarding ? '發送中…' : '發點數' }}
           </button>
         </form>
