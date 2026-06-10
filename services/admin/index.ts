@@ -44,7 +44,14 @@ function parseBody(event: APIGatewayProxyEventV2): Record<string, unknown> {
   try { return JSON.parse(event.body ?? '{}'); } catch { return {}; }
 }
 
-type JwtContext = { authorizer?: { jwt?: { claims?: { sub?: string; 'cognito:groups'?: string | string[] } } } };
+type JwtClaims = {
+  sub?: string;
+  email?: string;
+  name?: string;
+  'cognito:groups'?: string | string[];
+  'cognito:username'?: string;
+};
+type JwtContext = { authorizer?: { jwt?: { claims?: JwtClaims } } };
 
 function getClaims(event: APIGatewayProxyEventV2) {
   return (event.requestContext as unknown as JwtContext)?.authorizer?.jwt?.claims;
@@ -468,6 +475,112 @@ async function cancelRedemption(memberId: string, redemptionId: string): Promise
   return ok({ message: 'Redemption cancelled, points restored' });
 }
 
+// ─── Approval management ─────────────────────────────────────────────────────
+
+async function requestAccess(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+  const claims = getClaims(event);
+  if (!claims?.sub) return err('Unauthorized', 401);
+
+  const sub             = claims.sub as string;
+  const email           = (claims['email'] ?? '') as string;
+  const name            = (claims['name'] ?? email.split('@')[0] ?? sub.slice(0, 8)) as string;
+  const cognitoUsername = (claims['cognito:username'] ?? sub) as string;
+
+  const groups = claims['cognito:groups'];
+  if (groups) {
+    const g = parseGroups(groups as string | string[]);
+    if (g.includes('admin') || g.includes('trainer')) return err('Already approved', 409);
+  }
+
+  const existing = await dynamo.send(
+    new GetCommand({ TableName: TABLE_NAME, Key: { PK: `PENDING_ADMIN#${sub}`, SK: 'META' } })
+  );
+  if (existing.Item) {
+    return ok({ status: existing.Item.status, requestedAt: existing.Item.requestedAt });
+  }
+
+  const now = new Date().toISOString();
+  try {
+    await dynamo.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: { PK: `PENDING_ADMIN#${sub}`, SK: 'META', sub, email, name, cognitoUsername, requestedAt: now, status: 'pending' },
+        ConditionExpression: 'attribute_not_exists(PK)',
+      })
+    );
+  } catch (e: unknown) {
+    if ((e as { name?: string }).name === 'ConditionalCheckFailedException') {
+      const recheck = await dynamo.send(
+        new GetCommand({ TableName: TABLE_NAME, Key: { PK: `PENDING_ADMIN#${sub}`, SK: 'META' } })
+      );
+      return ok({ status: recheck.Item?.status ?? 'pending', requestedAt: recheck.Item?.requestedAt ?? now });
+    }
+    throw e;
+  }
+  return ok({ status: 'pending', requestedAt: now }, 201);
+}
+
+async function listPendingApprovals(): Promise<APIGatewayProxyResultV2> {
+  const result = await dynamo.send(
+    new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: 'begins_with(PK, :prefix) AND SK = :meta',
+      ExpressionAttributeValues: { ':prefix': 'PENDING_ADMIN#', ':meta': 'META' },
+    })
+  );
+  const items = (result.Items ?? []).sort((a, b) =>
+    String(b.requestedAt).localeCompare(String(a.requestedAt))
+  );
+  return ok({ approvals: items });
+}
+
+async function approvePending(sub: string, event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+  const result = await dynamo.send(
+    new GetCommand({ TableName: TABLE_NAME, Key: { PK: `PENDING_ADMIN#${sub}`, SK: 'META' } })
+  );
+  if (!result.Item) return err('Approval request not found', 404);
+  if (result.Item.status !== 'pending') return err('Request is not pending', 400);
+
+  await cognito.send(
+    new AdminAddUserToGroupCommand({
+      UserPoolId: USER_POOL_ID,
+      Username: result.Item.cognitoUsername as string,
+      GroupName: 'trainer',
+    })
+  );
+
+  const now = new Date().toISOString();
+  await dynamo.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `PENDING_ADMIN#${sub}`, SK: 'META' },
+      UpdateExpression: 'SET #status = :s, reviewedAt = :now, reviewedBy = :by',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: { ':s': 'approved', ':now': now, ':by': getClaims(event)?.sub ?? 'unknown' },
+    })
+  );
+  return ok({ message: 'Approved and added to trainer group' });
+}
+
+async function rejectPending(sub: string, event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+  const result = await dynamo.send(
+    new GetCommand({ TableName: TABLE_NAME, Key: { PK: `PENDING_ADMIN#${sub}`, SK: 'META' } })
+  );
+  if (!result.Item) return err('Approval request not found', 404);
+
+  const now = new Date().toISOString();
+  await dynamo.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `PENDING_ADMIN#${sub}`, SK: 'META' },
+      UpdateExpression: 'SET #status = :s, reviewedAt = :now, reviewedBy = :by',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: { ':s': 'rejected', ':now': now, ':by': getClaims(event)?.sub ?? 'unknown' },
+    })
+  );
+  return ok({ message: 'Rejected' });
+}
+
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
@@ -477,6 +590,11 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   console.log({ method, path });
 
   if (method === 'OPTIONS') return { statusCode: 200, headers: { ...CORS }, body: '' };
+
+  // POST /admin/request-access — any valid JWT (no group required)
+  if (method === 'POST' && path === '/admin/request-access') {
+    return await requestAccess(event);
+  }
 
   if (!isAdminOrTrainer(event)) return err('Forbidden', 403);
   const callerIsAdmin = isAdmin(event);
@@ -565,6 +683,26 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
         if (method === 'POST') return await awardPoints(id, event);
         if (method === 'GET') return await getMemberPoints(id, event);
       }
+    }
+
+    // GET /admin/approvals
+    if (method === 'GET' && path === '/admin/approvals') {
+      if (!callerIsAdmin) return err('Forbidden', 403);
+      return await listPendingApprovals();
+    }
+
+    // POST /admin/approvals/:sub/approve
+    const approveMatch = path.match(/^\/admin\/approvals\/([^/]+)\/approve$/);
+    if (approveMatch && method === 'POST') {
+      if (!callerIsAdmin) return err('Forbidden', 403);
+      return await approvePending(approveMatch[1], event);
+    }
+
+    // POST /admin/approvals/:sub/reject
+    const rejectMatch = path.match(/^\/admin\/approvals\/([^/]+)\/reject$/);
+    if (rejectMatch && method === 'POST') {
+      if (!callerIsAdmin) return err('Forbidden', 403);
+      return await rejectPending(rejectMatch[1], event);
     }
 
     return err('Not found', 404);

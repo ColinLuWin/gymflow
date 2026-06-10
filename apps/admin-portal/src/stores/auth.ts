@@ -4,6 +4,15 @@ import { ref, computed } from 'vue'
 const COGNITO_DOMAIN = import.meta.env.VITE_COGNITO_DOMAIN as string
 const CLIENT_ID      = import.meta.env.VITE_COGNITO_CLIENT_ID as string
 
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  try {
+    const payload = token.split('.')[1]
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+  } catch {
+    return {}
+  }
+}
+
 function generateCodeVerifier(): string {
   const array = new Uint8Array(32)
   crypto.getRandomValues(array)
@@ -24,6 +33,20 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshToken = ref<string | null>(localStorage.getItem('refreshToken'))
 
   const isLoggedIn = computed(() => !!idToken.value)
+
+  const groups = computed<string[]>(() => {
+    if (!idToken.value) return []
+    const payload = decodeJwtPayload(idToken.value)
+    const g = payload['cognito:groups']
+    if (!g) return []
+    if (Array.isArray(g)) return g as string[]
+    if (typeof g === 'string') return g.replace(/^\[|\]$/g, '').split(' ').filter(Boolean)
+    return []
+  })
+
+  const isAdmin    = computed(() => groups.value.includes('admin'))
+  const isTrainer  = computed(() => groups.value.includes('trainer'))
+  const isPendingApproval = computed(() => isLoggedIn.value && !isAdmin.value && !isTrainer.value)
 
   function setTokens(tokens: { idToken: string; accessToken: string; refreshToken: string }) {
     idToken.value      = tokens.idToken
@@ -90,5 +113,5 @@ export const useAuthStore = defineStore('auth', () => {
       `${COGNITO_DOMAIN}/logout?client_id=${CLIENT_ID}&logout_uri=${window.location.origin}/login`
   }
 
-  return { idToken, accessToken, refreshToken, isLoggedIn, setTokens, startLogin, handleCallback, logout }
+  return { idToken, accessToken, refreshToken, isLoggedIn, groups, isAdmin, isTrainer, isPendingApproval, setTokens, startLogin, handleCallback, logout }
 })

@@ -55,6 +55,19 @@ export interface Redemption {
   usedAt?: string
 }
 
+export interface PendingApproval {
+  PK: string
+  SK: string
+  sub: string
+  email: string
+  name: string
+  cognitoUsername: string
+  requestedAt: string
+  status: 'pending' | 'approved' | 'rejected'
+  reviewedAt?: string
+  reviewedBy?: string
+}
+
 export interface Member {
   PK: string
   SK: string
@@ -133,4 +146,17 @@ export const api = {
     request<{ message: string }>(`/admin/members/${memberId}/redemptions/${redemptionId}/use`, {
       method: 'POST',
     }),
+
+  requestAccess: () =>
+    request<{ status: 'pending' | 'approved' | 'rejected'; requestedAt: string }>('/admin/request-access', {
+      method: 'POST',
+    }),
+
+  listApprovals: () => request<{ approvals: PendingApproval[] }>('/admin/approvals'),
+
+  approveAdmin: (sub: string) =>
+    request<{ message: string }>(`/admin/approvals/${sub}/approve`, { method: 'POST' }),
+
+  rejectAdmin: (sub: string) =>
+    request<{ message: string }>(`/admin/approvals/${sub}/reject`, { method: 'POST' }),
 }

@@ -6,6 +6,8 @@ const router = createRouter({
   routes: [
     { path: '/login',    component: () => import('@/views/LoginView.vue'),    meta: { public: true } },
     { path: '/callback', component: () => import('@/views/CallbackView.vue'), meta: { public: true } },
+    { path: '/pending',  component: () => import('@/views/PendingView.vue') },
+    { path: '/approvals', component: () => import('@/views/ApprovalsView.vue') },
     { path: '/members', component: () => import('@/views/MembersView.vue') },
     { path: '/members/new', component: () => import('@/views/MemberNewView.vue') },
     { path: '/members/:id', component: () => import('@/views/MemberDetailView.vue') },
@@ -18,8 +20,20 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
-  if (!to.meta.public && !auth.isLoggedIn) return '/login'
-  if (to.meta.public && auth.isLoggedIn) return '/members'
+
+  if (!auth.isLoggedIn) {
+    if (!to.meta.public) return '/login'
+    return
+  }
+
+  // Authenticated but not yet approved → only /pending and /callback are allowed
+  if (auth.isPendingApproval) {
+    if (to.path === '/pending' || to.path === '/callback') return
+    return '/pending'
+  }
+
+  // Authenticated and approved → public routes + /pending redirect to app
+  if (to.meta.public || to.path === '/pending') return '/members'
 })
 
 export default router

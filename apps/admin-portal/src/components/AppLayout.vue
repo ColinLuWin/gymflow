@@ -21,8 +21,12 @@
           <RouterLink to="/redemptions"
             class="text-sm font-semibold text-white/55 hover:text-white transition-colors"
             active-class="!text-white">兌換記錄</RouterLink>
+          <RouterLink v-if="auth.isAdmin" to="/approvals"
+            class="text-sm font-semibold text-white/55 hover:text-white transition-colors"
+            active-class="!text-white">審核管理</RouterLink>
+          <div class="w-px h-4 bg-white/20 ml-1"></div>
           <button @click="logout"
-            class="text-sm font-medium text-white/30 hover:text-white/60 transition-colors ml-1">登出</button>
+            class="text-sm font-semibold text-white/70 hover:text-white transition-colors">登出</button>
         </div>
       </div>
     </nav>
@@ -36,5 +40,5 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
-const logout = () => auth.logout()
+function logout() { auth.logout() }
 </script>
