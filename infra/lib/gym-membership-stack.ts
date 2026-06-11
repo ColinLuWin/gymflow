@@ -170,7 +170,10 @@ export class GymMembershipStack extends cdk.Stack {
       depsLockFilePath: servicesLockFile,
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
-      environment: commonEnv,
+      environment: {
+        ...commonEnv,
+        LINE_CHANNEL_ACCESS_TOKEN: lineSecret.secretValueFromJson('channelAccessToken').unsafeUnwrap(),
+      },
     });
 
     const memberHandler = new nodejs.NodejsFunction(this, 'MemberHandler', {

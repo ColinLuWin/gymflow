@@ -70,6 +70,7 @@ const navLinks = computed(() => [
   { to: '/rewards',     label: '獎勵商品' },
   { to: '/redemptions', label: '兌換記錄' },
   ...(auth.isAdmin ? [{ to: '/approvals', label: '審核管理' }] : []),
+  ...(auth.isAdmin ? [{ to: '/line-broadcast', label: 'LINE 推播' }] : []),
 ])
 
 function logout() { auth.logout() }

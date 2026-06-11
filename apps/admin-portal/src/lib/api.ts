@@ -159,4 +159,10 @@ export const api = {
 
   rejectAdmin: (sub: string) =>
     request<{ message: string }>(`/admin/approvals/${sub}/reject`, { method: 'POST' }),
+
+  lineBroadcast: (message: string) =>
+    request<{ sent: number }>('/admin/line/broadcast', {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    }),
 }

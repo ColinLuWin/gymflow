@@ -48,11 +48,17 @@
               </span>
               <span v-else class="text-xs text-gray-300">未綁定</span>
             </div>
-            <button v-if="!lineLinked" @click="linkLine"
-              class="text-sm font-bold px-4 py-1.5 rounded-xl text-white hover:opacity-90 transition-opacity"
-              style="background-color: #06C755;">
-              綁定
-            </button>
+            <div class="flex items-center gap-2">
+              <button v-if="!lineLinked" @click="linkLine"
+                class="text-sm font-bold px-4 py-1.5 rounded-xl text-white hover:opacity-90 transition-opacity"
+                style="background-color: #06C755;">
+                綁定
+              </button>
+              <button v-if="lineLinked" @click="doUnlinkLine" :disabled="unlinking"
+                class="text-xs font-semibold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200 transition-colors disabled:opacity-40">
+                {{ unlinking ? '解除中…' : '解除綁定' }}
+              </button>
+            </div>
           </div>
           <p v-if="!lineLinked" class="mt-3 text-xs text-gray-400">綁定後可使用 LINE 登入，也可收到最新通知。</p>
         </div>
@@ -78,6 +84,7 @@ const saveError      = ref('')
 const saved          = ref(false)
 const linkSuccess    = ref(false)
 const linkError      = ref('')
+const unlinking      = ref(false)
 
 onMounted(async () => {
   try {
@@ -112,6 +119,19 @@ async function save() {
   }
 }
 
+async function doUnlinkLine() {
+  if (!confirm('確定要解除 LINE 綁定？解除後將無法使用 LINE 登入。')) return
+  unlinking.value = true
+  try {
+    await api.unlinkLine()
+    lineLinked.value = false
+  } catch (e) {
+    linkError.value = e instanceof Error ? e.message : '解除失敗，請稍後再試'
+  } finally {
+    unlinking.value = false
+  }
+}
+
 function linkLine() {
   const state = crypto.randomUUID()
   sessionStorage.setItem('line_link_state', state)
@@ -119,6 +139,7 @@ function linkLine() {
   const params = new URLSearchParams({
     response_type: 'code', client_id: LINE_CLIENT_ID,
     redirect_uri: redirectUri, scope: 'openid profile', state,
+    bot_prompt: 'aggressive',
   })
   window.location.href = `https://access.line.me/oauth2/v2.1/authorize?${params}`
 }

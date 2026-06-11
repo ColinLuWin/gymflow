@@ -76,6 +76,19 @@ async function updateProfile(sub: string, event: APIGatewayProxyEventV2): Promis
   return ok(result.Attributes);
 }
 
+async function unlinkLine(sub: string): Promise<APIGatewayProxyResultV2> {
+  await dynamo.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `MEMBER#${sub}`, SK: 'PROFILE' },
+      UpdateExpression: 'REMOVE lineUserId SET updatedAt = :now',
+      ExpressionAttributeValues: { ':now': new Date().toISOString() },
+      ConditionExpression: 'attribute_exists(PK)',
+    })
+  );
+  return ok({ message: 'LINE unlinked' });
+}
+
 async function getMembership(sub: string): Promise<APIGatewayProxyResultV2> {
   const result = await dynamo.send(
     new QueryCommand({
@@ -273,6 +286,7 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   try {
     if (method === 'GET' && path === '/members/me') return await getProfile(sub);
     if (method === 'PUT' && path === '/members/me') return await updateProfile(sub, event);
+    if (method === 'DELETE' && path === '/members/me/line') return await unlinkLine(sub);
     if (method === 'GET' && path === '/members/me/membership') return await getMembership(sub);
     if (method === 'GET' && path === '/members/me/checkins') return await getCheckins(sub, event);
     if (method === 'GET' && path === '/members/me/qr') return await getQr(sub);

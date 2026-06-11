@@ -86,6 +86,8 @@ export const api = {
       body: JSON.stringify({ code, redirectUri }),
     }),
 
+  unlinkLine: () => request<{ message: string }>('/members/me/line', { method: 'DELETE' }),
+
   getProfile: () => request<Profile>('/members/me'),
 
   updateProfile: (data: { name?: string; phone?: string }) =>

@@ -14,6 +14,7 @@ const router = createRouter({
     { path: '/rewards', component: () => import('@/views/RewardsView.vue') },
     { path: '/redemptions', component: () => import('@/views/RedemptionsView.vue') },
     { path: '/scan', component: () => import('@/views/ScanView.vue') },
+    { path: '/line-broadcast', component: () => import('@/views/LineBroadcastView.vue') },
     { path: '/', redirect: '/members' },
   ],
 })

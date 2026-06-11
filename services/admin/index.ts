@@ -25,6 +25,7 @@ const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 const USER_POOL_ID = process.env.USER_POOL_ID!;
 const TABLE_NAME = process.env.TABLE_NAME!;
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN ?? '';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -581,6 +582,57 @@ async function rejectPending(sub: string, event: APIGatewayProxyEventV2): Promis
   return ok({ message: 'Rejected' });
 }
 
+// ─── LINE broadcast ───────────────────────────────────────────────────────────
+
+async function lineBroadcast(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+  if (!LINE_CHANNEL_ACCESS_TOKEN) return err('LINE not configured', 503);
+  const { message } = parseBody(event) as { message?: string };
+  if (!message?.trim()) return err('message is required', 400);
+
+  // Collect all lineUserIds — gym scale is well under 500 so one scan is fine
+  const result = await dynamo.send(
+    new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: 'SK = :profile AND attribute_exists(lineUserId)',
+      ExpressionAttributeValues: { ':profile': 'PROFILE' },
+      ProjectionExpression: 'lineUserId',
+    })
+  );
+
+  const lineUserIds = (result.Items ?? [])
+    .map((i) => i.lineUserId as string)
+    .filter(Boolean);
+
+  if (lineUserIds.length === 0) return ok({ sent: 0 });
+
+  // LINE multicast supports up to 500 recipients per call
+  const chunks: string[][] = [];
+  for (let i = 0; i < lineUserIds.length; i += 500) {
+    chunks.push(lineUserIds.slice(i, i + 500));
+  }
+
+  for (const chunk of chunks) {
+    const res = await fetch('https://api.line.me/v2/bot/message/multicast', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify({
+        to: chunk,
+        messages: [{ type: 'text', text: message }],
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.json() as { message?: string };
+      console.error('LINE multicast error', res.status, body);
+      return err(`LINE API error: ${body.message ?? res.status}`, 502);
+    }
+  }
+
+  return ok({ sent: lineUserIds.length });
+}
+
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
@@ -594,6 +646,12 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   // POST /admin/request-access — any valid JWT (no group required)
   if (method === 'POST' && path === '/admin/request-access') {
     return await requestAccess(event);
+  }
+
+  // POST /admin/line/broadcast — admin only
+  if (method === 'POST' && path === '/admin/line/broadcast') {
+    if (!isAdmin(event)) return err('Forbidden', 403);
+    return await lineBroadcast(event);
   }
 
   if (!isAdminOrTrainer(event)) return err('Forbidden', 403);
