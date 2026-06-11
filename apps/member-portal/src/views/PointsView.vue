@@ -6,7 +6,6 @@
       <!-- Hero member card -->
       <div class="gradient-hero rounded-3xl p-7 mb-5 relative overflow-hidden"
         style="box-shadow: 0 12px 48px rgba(79,70,229,0.45), 0 4px 12px rgba(0,0,0,0.12);">
-        <!-- Decorative blur circles -->
         <div class="absolute -top-16 -right-16 w-56 h-56 rounded-full pointer-events-none"
           style="background: rgba(255,255,255,0.07);"></div>
         <div class="absolute -bottom-12 -left-8 w-40 h-40 rounded-full pointer-events-none"
@@ -18,13 +17,16 @@
             <p class="text-xs font-bold uppercase tracking-widest text-white/50 mb-1.5">Gymflow Member</p>
             <p class="text-2xl font-black text-white tracking-tight">{{ profile?.name ?? '—' }}</p>
           </div>
-          <!-- QR -->
-          <div class="bg-white rounded-2xl p-2 shrink-0 shadow-lg">
+
+          <!-- QR — tap to enlarge -->
+          <button @click="showQrModal = true"
+            class="bg-white rounded-2xl p-2 shrink-0 shadow-lg active:scale-95 transition-transform flex flex-col items-center">
             <img v-if="qrDataUrl" :src="qrDataUrl" alt="會員 QR Code" class="w-16 h-16 block rounded-lg" />
             <div v-else class="w-16 h-16 flex items-center justify-center">
               <span class="text-xs text-gray-300">…</span>
             </div>
-          </div>
+            <span v-if="qrDataUrl" class="text-[9px] text-gray-400 font-semibold mt-1 leading-none">點擊放大</span>
+          </button>
         </div>
 
         <!-- Points display -->
@@ -71,6 +73,32 @@
         <div v-else class="px-6 py-10 text-center text-sm text-gray-300">尚無異動記錄</div>
       </div>
     </template>
+
+    <!-- QR Fullscreen Modal -->
+    <Teleport to="body">
+      <Transition name="qr-fade">
+        <div v-if="showQrModal"
+          @click="showQrModal = false"
+          class="fixed inset-0 z-50 flex items-center justify-center p-6"
+          style="background: rgba(15,10,40,0.82); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);">
+
+          <div @click.stop
+            class="bg-white rounded-3xl p-8 flex flex-col items-center w-full max-w-xs shadow-2xl">
+
+            <!-- Header -->
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">出示掃描</p>
+            <p class="text-xl font-black text-gray-900 mb-6">{{ profile?.name }}</p>
+
+            <!-- Large QR -->
+            <div class="bg-gray-50 rounded-2xl p-4">
+              <img :src="qrDataUrl" alt="會員 QR Code" class="w-64 h-64 block" style="image-rendering: pixelated;" />
+            </div>
+
+            <p class="text-xs text-gray-300 mt-5">點擊任意處關閉</p>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </AppLayout>
 </template>
 
@@ -81,20 +109,23 @@ import AppLayout from '@/components/AppLayout.vue'
 import { api, type PointsTxn, type Profile } from '@/lib/api'
 
 const loading = ref(true)
-const memberId = ref('')
 const qrDataUrl = ref('')
 const balance = ref(0)
 const transactions = ref<PointsTxn[]>([])
 const profile = ref<Profile | null>(null)
+const showQrModal = ref(false)
 
 onMounted(async () => {
   try {
     const [qr, pts, p] = await Promise.all([api.getQr(), api.getPoints(), api.getProfile()])
-    memberId.value = qr.memberId
     balance.value = pts.balance
     transactions.value = pts.transactions
     profile.value = p
-    qrDataUrl.value = await QRCode.toDataURL(qr.memberId, { width: 128, margin: 1 })
+    // 高解析度生成，縮小顯示不失真，放大後也清晰
+    qrDataUrl.value = await QRCode.toDataURL(qr.memberId, {
+      width: 512,
+      margin: 2,
+    })
   } finally {
     loading.value = false
   }
@@ -115,3 +146,14 @@ function formatDate(iso: string) {
   })
 }
 </script>
+
+<style scoped>
+.qr-fade-enter-active,
+.qr-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.qr-fade-enter-from,
+.qr-fade-leave-to {
+  opacity: 0;
+}
+</style>
